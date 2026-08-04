@@ -162,6 +162,7 @@ function iniciar(d) {
 
 /* ---- UI principal ---- */
 function pintarEstado(d) {
+  ultimaAct = Date.now();
   estado.atajos = d.atajos || [];
   var hoy = new Date();
   var dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -314,6 +315,18 @@ $('btnRefrescar').onclick = function () {
 document.addEventListener('visibilitychange', function () {
   if (!document.hidden && localStorage.getItem('clave') && !$('app').classList.contains('oculto')) refrescar();
 });
+
+/* si la app quedó quieta y la vuelven a tocar, se actualiza sola */
+var ultimaAct = Date.now();
+function toqueDeUso() {
+  if ($('app').classList.contains('oculto') || estado.enviando) return;
+  if (Date.now() - ultimaAct < 60000) return;
+  ultimaAct = Date.now();
+  refrescar();
+}
+document.addEventListener('touchstart', toqueDeUso, { passive: true });
+document.addEventListener('mousedown', toqueDeUso);
+document.addEventListener('focusin', toqueDeUso);
 
 /* arranque */
 pintarTipo();
