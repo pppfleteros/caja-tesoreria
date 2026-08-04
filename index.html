@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14532d">
+<title>Caja Tesorería</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root {
+    --verde: #16a34a; --verde-bg: #dcfce7; --verde-tx: #14532d;
+    --rojo: #dc2626; --rojo-bg: #fee2e2; --rojo-tx: #7f1d1d;
+    --azul: #2563eb; --azul-bg: #dbeafe; --azul-tx: #1e3a8a;
+    --gris: #6b7280; --borde: #d1d5db; --fondo: #f3f4f6; --card: #ffffff; --texto: #111827;
+  }
+  * { box-sizing: border-box; margin: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: var(--fondo); color: var(--texto); padding-bottom: 40px; }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 12px; }
+  .card { background: var(--card); border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  h1 { font-size: 15px; color: var(--gris); font-weight: 500; text-align: center; padding: 10px 0 2px; }
+  .saldo { text-align: center; }
+  .saldo .fecha { font-size: 13px; color: var(--gris); }
+  .saldo .monto { font-size: 32px; font-weight: 700; margin: 2px 0; }
+  .saldo .usd { font-size: 14px; color: var(--gris); }
+  label { display: block; font-size: 12px; color: var(--gris); margin: 10px 0 5px; }
+  .fila { display: flex; gap: 8px; }
+  .btn-tipo { flex: 1; padding: 13px 0; font-size: 16px; font-weight: 600; border-radius: 10px; border: 1.5px solid var(--borde); background: var(--card); color: var(--gris); }
+  .btn-tipo.entrada.on { background: var(--verde-bg); border-color: var(--verde); color: var(--verde-tx); }
+  .btn-tipo.salida.on { background: var(--rojo-bg); border-color: var(--rojo); color: var(--rojo-tx); }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { padding: 9px 14px; border-radius: 999px; border: 1.5px solid var(--borde); background: var(--card); font-size: 14px; color: var(--gris); }
+  .chip.on { background: var(--azul-bg); border-color: var(--azul); color: var(--azul-tx); font-weight: 600; }
+  input[type=text], input[type=tel], input[type=password] { width: 100%; padding: 12px; font-size: 16px; border: 1.5px solid var(--borde); border-radius: 10px; background: var(--card); color: var(--texto); }
+  input:focus { outline: none; border-color: var(--azul); }
+  #monto { font-size: 22px; font-weight: 600; }
+  .sug { border: 1.5px solid var(--borde); border-radius: 10px; margin-top: 4px; overflow: hidden; background: var(--card); }
+  .sug div { padding: 11px 13px; font-size: 15px; border-top: 1px solid #eee; display: flex; justify-content: space-between; }
+  .sug div:first-child { border-top: none; }
+  .sug small { color: var(--gris); }
+  .confirmar { width: 100%; margin-top: 16px; padding: 15px 0; font-size: 17px; font-weight: 700; color: #fff; border: none; border-radius: 12px; background: var(--verde); }
+  .confirmar.salida { background: var(--rojo); }
+  .confirmar:disabled { opacity: .5; }
+  .mov { display: flex; align-items: center; gap: 8px; padding: 9px 0; border-top: 1px solid #eee; font-size: 14px; }
+  .mov:first-child { border-top: none; }
+  .mov .que { flex: 1; }
+  .mov .quien { font-size: 12px; color: var(--gris); }
+  .mov .cuanto { font-weight: 600; white-space: nowrap; }
+  .mov .cuanto.e { color: var(--verde); }
+  .mov .cuanto.s { color: var(--rojo); }
+  .mov button { border: none; background: none; color: var(--gris); font-size: 18px; padding: 4px 6px; }
+  .aviso { text-align: center; font-size: 14px; color: var(--gris); padding: 8px 0; }
+  .error { background: var(--rojo-bg); color: var(--rojo-tx); padding: 10px 14px; border-radius: 10px; font-size: 14px; margin-bottom: 10px; display: none; }
+  .oculto { display: none !important; }
+  .spin { display: inline-block; width: 16px; height: 16px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: g .7s linear infinite; vertical-align: -3px; }
+  @keyframes g { to { transform: rotate(360deg); } }
+  @media (prefers-color-scheme: dark) {
+    :root { --fondo: #111827; --card: #1f2937; --texto: #f9fafb; --borde: #374151; --gris: #9ca3af;
+      --verde-bg: #14532d; --verde-tx: #bbf7d0; --rojo-bg: #7f1d1d; --rojo-tx: #fecaca; --azul-bg: #1e3a8a; --azul-tx: #bfdbfe; }
+    .mov { border-top-color: #374151; }
+    .sug div { border-top-color: #374151; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Caja tesorería</h1>
+  <div class="error" id="error"></div>
+
+  <div class="card" id="login">
+    <label>Ingresá tu clave de acceso</label>
+    <input type="password" id="clave" autocomplete="off" placeholder="Clave">
+    <button class="confirmar" id="entrar" style="margin-top:12px">Entrar</button>
+  </div>
+
+  <div id="app" class="oculto">
+    <div class="card saldo">
+      <div class="fecha" id="fecha"></div>
+      <div style="font-size:13px;color:var(--gris)">Saldo en efectivo</div>
+      <div class="monto" id="saldo">—</div>
+      <div class="usd" id="saldoUsd"></div>
+    </div>
+
+    <div class="card">
+      <div class="fila">
+        <button class="btn-tipo entrada" id="btnE">↓ Ingreso</button>
+        <button class="btn-tipo salida" id="btnS">↑ Egreso</button>
+      </div>
+
+      <label>Empresa (podés tocar más de una)</label>
+      <div class="chips" id="empresas"></div>
+
+      <label>Moneda</label>
+      <div class="chips" id="monedas">
+        <button class="chip on" data-m="ARS">Pesos</button>
+        <button class="chip" data-m="USD">Dólares</button>
+      </div>
+
+      <label>Detalle</label>
+      <input type="text" id="detalle" autocomplete="off" placeholder="Escribí y elegí de la lista">
+      <div class="sug oculto" id="sug"></div>
+
+      <label>Monto</label>
+      <input type="tel" id="monto" inputmode="numeric" placeholder="$ 0">
+
+      <button class="confirmar" id="confirmar">Confirmar ingreso</button>
+    </div>
+
+    <div class="card">
+      <label style="margin-top:0">Movimientos de hoy</label>
+      <div id="movs" class="aviso">Cargando…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+var API_URL = 'https://script.google.com/macros/s/AKfycbxL_UQ0p1e0QDZ1PGgz5G71aMgfl9iLcf32lR_KU7bzOvNh4KyLVGnDLF30HFzkr7j5wg/exec';
+var EMPRESAS = ['LP', 'PPP', 'ELEBES', 'EL CHIRLO', 'SIN'];
+var estado = { tipo: 'E', moneda: 'ARS', emp: [], atajos: [], enviando: false };
+
+function $(id) { return document.getElementById(id); }
+function fmt(n) { return new Intl.NumberFormat('es-AR').format(Math.round(n)); }
+function fmtMon(n, m) { return (m === 'USD' ? 'US$ ' : '$ ') + fmt(n); }
+
+function mostrarError(msg) {
+  var e = $('error');
+  e.textContent = msg;
+  e.style.display = 'block';
+  setTimeout(function () { e.style.display = 'none'; }, 6000);
+}
+
+function api(cuerpo) {
+  cuerpo.clave = localStorage.getItem('clave') || $('clave').value.trim();
+  return fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(cuerpo) })
+    .then(function (r) { return r.json(); })
+    .then(function (d) { if (d.error) throw new Error(d.error); return d; });
+}
+
+/* ---- login ---- */
+$('entrar').onclick = function () {
+  var c = $('clave').value.trim();
+  if (!c) return;
+  $('entrar').innerHTML = '<span class="spin"></span>';
+  api({ accion: 'estado' }).then(function (d) {
+    localStorage.setItem('clave', c);
+    iniciar(d);
+  }).catch(function (e) {
+    $('entrar').textContent = 'Entrar';
+    mostrarError(e.message);
+  });
+};
+
+function iniciar(d) {
+  $('login').classList.add('oculto');
+  $('app').classList.remove('oculto');
+  pintarEstado(d);
+}
+
+/* ---- UI principal ---- */
+function pintarEstado(d) {
+  estado.atajos = d.atajos || [];
+  var hoy = new Date();
+  var dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  var meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  $('fecha').textContent = dias[hoy.getDay()] + ' ' + hoy.getDate() + ' de ' + meses[hoy.getMonth()] + ' · ' + d.usuario;
+  $('saldo').textContent = '$ ' + fmt(d.saldo);
+  $('saldoUsd').textContent = d.saldoUsd ? 'Dólares: US$ ' + fmt(d.saldoUsd) : '';
+  var m = $('movs');
+  if (!d.movimientos || !d.movimientos.length) { m.className = 'aviso'; m.textContent = 'Todavía no hay movimientos hoy.'; return; }
+  m.className = ''; m.innerHTML = '';
+  d.movimientos.forEach(function (mv) {
+    var div = document.createElement('div');
+    div.className = 'mov';
+    var signo = mv.tipo === 'E' ? '+' : '−';
+    div.innerHTML = '<div class="que">' + mv.detalle + (mv.empresas ? ' · ' + mv.empresas : '') +
+      '<div class="quien">' + mv.hora + ' · ' + mv.usuario + '</div></div>' +
+      '<div class="cuanto ' + (mv.tipo === 'E' ? 'e' : 's') + '">' + signo + ' ' + fmtMon(mv.monto, mv.moneda) + '</div>';
+    var b = document.createElement('button');
+    b.textContent = '✕';
+    b.title = 'Anular';
+    b.onclick = function () {
+      if (!confirm('¿Anular este movimiento?\n' + mv.detalle + ' ' + fmtMon(mv.monto, mv.moneda))) return;
+      api({ accion: 'anular', id: mv.id }).then(refrescar).catch(function (e) { mostrarError(e.message); });
+    };
+    div.appendChild(b);
+    m.appendChild(div);
+  });
+}
+
+function refrescar() {
+  return api({ accion: 'estado' }).then(pintarEstado).catch(function (e) { mostrarError(e.message); });
+}
+
+/* tipo */
+function pintarTipo() {
+  $('btnE').classList.toggle('on', estado.tipo === 'E');
+  $('btnS').classList.toggle('on', estado.tipo === 'S');
+  var c = $('confirmar');
+  c.classList.toggle('salida', estado.tipo === 'S');
+  c.textContent = estado.tipo === 'E' ? 'Confirmar ingreso' : 'Confirmar egreso';
+}
+$('btnE').onclick = function () { estado.tipo = 'E'; pintarTipo(); };
+$('btnS').onclick = function () { estado.tipo = 'S'; pintarTipo(); };
+
+/* empresas */
+EMPRESAS.forEach(function (e) {
+  var b = document.createElement('button');
+  b.className = 'chip'; b.textContent = e === 'SIN' ? 'Sin empresa' : e; b.dataset.e = e;
+  b.onclick = function () {
+    if (e === 'SIN') { estado.emp = estado.emp.indexOf('SIN') >= 0 ? [] : ['SIN']; }
+    else {
+      var i = estado.emp.indexOf(e);
+      if (i >= 0) estado.emp.splice(i, 1); else estado.emp.push(e);
+      estado.emp = estado.emp.filter(function (x) { return x !== 'SIN'; });
+    }
+    pintarEmp();
+  };
+  $('empresas').appendChild(b);
+});
+function pintarEmp() {
+  [].forEach.call($('empresas').children, function (b) {
+    b.classList.toggle('on', estado.emp.indexOf(b.dataset.e) >= 0);
+  });
+}
+function setEmpDesdeTexto(txt) {
+  estado.emp = [];
+  if (!txt) { pintarEmp(); return; }
+  EMPRESAS.forEach(function (e) { if (e !== 'SIN' && txt.toUpperCase().indexOf(e) >= 0) estado.emp.push(e); });
+  pintarEmp();
+}
+
+/* moneda */
+[].forEach.call($('monedas').children, function (b) {
+  b.onclick = function () {
+    estado.moneda = b.dataset.m;
+    [].forEach.call($('monedas').children, function (x) { x.classList.toggle('on', x === b); });
+    $('monto').placeholder = estado.moneda === 'USD' ? 'US$ 0' : '$ 0';
+  };
+});
+
+/* autocompletado */
+$('detalle').oninput = function () {
+  var q = this.value.trim().toUpperCase();
+  var caja = $('sug');
+  if (q.length < 1) { caja.classList.add('oculto'); return; }
+  var res = estado.atajos.filter(function (a) { return a.d.indexOf(q) >= 0; }).slice(0, 6);
+  if (!res.length) { caja.classList.add('oculto'); return; }
+  caja.innerHTML = '';
+  res.forEach(function (a) {
+    var div = document.createElement('div');
+    div.innerHTML = '<span>' + a.d + '</span><small>' + (a.e || '') + '</small>';
+    div.onclick = function () {
+      $('detalle').value = a.d;
+      caja.classList.add('oculto');
+      if (a.t === 'E' || a.t === 'S') { estado.tipo = a.t; pintarTipo(); }
+      setEmpDesdeTexto(a.e);
+      $('monto').focus();
+    };
+    caja.appendChild(div);
+  });
+  caja.classList.remove('oculto');
+};
+document.addEventListener('click', function (ev) {
+  if (ev.target.id !== 'detalle') $('sug').classList.add('oculto');
+});
+
+/* monto con puntos de miles */
+$('monto').oninput = function () {
+  var limpio = this.value.replace(/\D/g, '');
+  this.value = limpio ? (estado.moneda === 'USD' ? 'US$ ' : '$ ') + fmt(Number(limpio)) : '';
+};
+function montoActual() { return Number($('monto').value.replace(/\D/g, '')); }
+
+/* confirmar */
+$('confirmar').onclick = function () {
+  if (estado.enviando) return;
+  var detalle = $('detalle').value.trim();
+  var monto = montoActual();
+  if (!detalle) { mostrarError('Escribí el detalle del movimiento.'); return; }
+  if (!monto) { mostrarError('Poné el monto.'); return; }
+  var empresas = estado.emp.filter(function (e) { return e !== 'SIN'; }).join(' ');
+  var resumen = (estado.tipo === 'E' ? 'INGRESO' : 'EGRESO') + ' de ' + fmtMon(monto, estado.moneda) +
+    '\n' + detalle + (empresas ? '\nEmpresa: ' + empresas : '\nSin empresa') + '\n\n¿Confirmás?';
+  if (!confirm(resumen)) return;
+
+  estado.enviando = true;
+  var b = $('confirmar');
+  b.disabled = true; b.innerHTML = '<span class="spin"></span>';
+  api({ accion: 'agregar', tipo: estado.tipo, moneda: estado.moneda, monto: monto, detalle: detalle, empresas: empresas })
+    .then(function () {
+      $('detalle').value = ''; $('monto').value = '';
+      estado.emp = []; pintarEmp();
+      return refrescar();
+    })
+    .catch(function (e) { mostrarError(e.message); })
+    .then(function () {
+      estado.enviando = false;
+      b.disabled = false;
+      pintarTipo();
+    });
+};
+
+/* arranque */
+pintarTipo();
+if (localStorage.getItem('clave')) {
+  $('login').classList.add('oculto');
+  api({ accion: 'estado' })
+    .then(function (d) { pintarEstado(d); $('app').classList.remove('oculto'); })
+    .catch(function () { localStorage.removeItem('clave'); $('login').classList.remove('oculto'); });
+}
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
