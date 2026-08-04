@@ -20,7 +20,9 @@
   .wrap { max-width: 480px; margin: 0 auto; padding: 12px; }
   .card { background: var(--card); border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
   h1 { font-size: 15px; color: var(--gris); font-weight: 500; text-align: center; padding: 10px 0 2px; }
-  .saldo { text-align: center; }
+  .saldo { text-align: center; position: relative; }
+  #btnRefrescar { position: absolute; top: 8px; right: 8px; border: none; background: none; font-size: 22px; color: var(--gris); padding: 6px; }
+  #btnRefrescar.girando { animation: g 1s linear infinite; }
   .saldo .fecha { font-size: 13px; color: var(--gris); }
   .saldo .monto { font-size: 32px; font-weight: 700; margin: 2px 0; }
   .saldo .usd { font-size: 14px; color: var(--gris); }
@@ -76,6 +78,7 @@
 
   <div id="app" class="oculto">
     <div class="card saldo">
+      <button id="btnRefrescar" title="Actualizar">⟳</button>
       <div class="fecha" id="fecha"></div>
       <div style="font-size:13px;color:var(--gris)">Saldo en efectivo</div>
       <div class="monto" id="saldo">—</div>
@@ -300,6 +303,17 @@ $('confirmar').onclick = function () {
       pintarTipo();
     });
 };
+
+/* actualizar */
+$('btnRefrescar').onclick = function () {
+  var b = this;
+  if (b.classList.contains('girando')) return;
+  b.classList.add('girando');
+  refrescar().then(function () { b.classList.remove('girando'); });
+};
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden && localStorage.getItem('clave') && !$('app').classList.contains('oculto')) refrescar();
+});
 
 /* arranque */
 pintarTipo();
