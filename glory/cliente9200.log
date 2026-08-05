@@ -1,0 +1,10 @@
+﻿08:29:49.058  [NADA (solo escuchar)] sin respuesta
+08:29:54.072  [ENQ] (Â¡SALUDO AL CONECTAR!) >>> HEX[01 30 30 30 32 53 43 31 2C 1C 30 46 03] TXT[.0002SC1,.0F.]
+08:29:57.570  [ACK] >>> HEX[01 30 30 30 30 53 43 31 2C 1C 30 44 03] TXT[.0000SC1,.0D.]
+08:30:01.059  [ENQ sobre] >>> HEX[15] TXT[.]
+08:30:04.447  [ENQ sobre+BCC] >>> HEX[15] TXT[.]
+08:30:09.521  [CRLF] >>> HEX[01 30 30 30 30 53 43 31 2C 1C 30 44 03] TXT[.0000SC1,.0D.]
+08:30:13.026  [sobre R+BCC] >>> HEX[15] TXT[.]
+08:30:16.531  [sobre 0x30 BCC] >>> HEX[15] TXT[.]
+08:30:19.969  [sobre STATUS BCC] >>> HEX[15] TXT[.]
+08:30:20.486  === FIN pruebas 9200 ===

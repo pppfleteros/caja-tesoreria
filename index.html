@@ -54,6 +54,9 @@
   .mov button { border: none; background: none; color: var(--gris); font-size: 18px; padding: 4px 6px; }
   .aviso { text-align: center; font-size: 14px; color: var(--gris); padding: 8px 0; }
   .error { background: var(--rojo-bg); color: var(--rojo-tx); padding: 10px 14px; border-radius: 10px; font-size: 14px; margin-bottom: 10px; display: none; }
+  .glory { background: var(--verde-bg); color: var(--verde-tx); border: 1.5px solid var(--verde); border-radius: 10px; padding: 11px 13px; margin-bottom: 8px; font-size: 15px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .glory b { font-size: 18px; }
+  .glory button { border: none; background: var(--verde); color: #fff; font-size: 14px; font-weight: 600; padding: 8px 14px; border-radius: 8px; white-space: nowrap; }
   .oculto { display: none !important; }
   .spin { display: inline-block; width: 16px; height: 16px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: g .7s linear infinite; vertical-align: -3px; }
   @keyframes g { to { transform: rotate(360deg); } }
@@ -105,6 +108,7 @@
       <div class="sug oculto" id="sug"></div>
 
       <label>Monto</label>
+      <div id="glory" class="glory oculto"></div>
       <input type="tel" id="monto" inputmode="numeric" placeholder="$ 0">
 
       <button class="confirmar" id="confirmar">Confirmar ingreso</button>
@@ -164,6 +168,7 @@ function iniciar(d) {
 function pintarEstado(d) {
   ultimaAct = Date.now();
   estado.atajos = d.atajos || [];
+  mostrarConteoGlory(d.conteo);
   var hoy = new Date();
   var dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
   var meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
@@ -194,6 +199,25 @@ function pintarEstado(d) {
 
 function refrescar() {
   return api({ accion: 'estado' }).then(pintarEstado).catch(function (e) { mostrarError(e.message); });
+}
+
+/* ---- conteo de la contadora Glory ---- */
+var conteoUsado = '';
+function mostrarConteoGlory(c) {
+  var caja = $('glory');
+  if (!c || !c.valor || c.sesion === conteoUsado) { caja.classList.add('oculto'); return; }
+  caja.innerHTML = '<span><i class="ti"></i>💵 La contadora contó<br><b>$ ' + fmt(c.valor) + '</b> <small>(' + c.billetes + ' billetes)</small></span>';
+  var b = document.createElement('button');
+  b.textContent = 'Usar';
+  b.onclick = function () {
+    estado.moneda = 'ARS';
+    [].forEach.call($('monedas').children, function (x) { x.classList.toggle('on', x.dataset.m === 'ARS'); });
+    $('monto').value = '$ ' + fmt(c.valor);
+    conteoUsado = c.sesion;
+    caja.classList.add('oculto');
+  };
+  caja.appendChild(b);
+  caja.classList.remove('oculto');
 }
 
 /* tipo */
@@ -327,6 +351,12 @@ function toqueDeUso() {
 document.addEventListener('touchstart', toqueDeUso, { passive: true });
 document.addEventListener('mousedown', toqueDeUso);
 document.addEventListener('focusin', toqueDeUso);
+
+/* sondeo periódico: mientras la app está abierta, busca el conteo de la contadora */
+setInterval(function () {
+  if (document.hidden || $('app').classList.contains('oculto') || estado.enviando) return;
+  refrescar();
+}, 5000);
 
 /* arranque */
 pintarTipo();

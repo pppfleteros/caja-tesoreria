@@ -1,0 +1,45 @@
+﻿07:27:08  === Prueba 3: consultas de estado sobre la conexion abierta (41) ===
+07:27:08  esperando que la maquina llame...
+07:27:12  conectada: 192.168.2.170:48084
+07:27:15  [DLE EOT 1 en sobre] sin respuesta
+07:27:18  [DLE EOT 1 sobre+BCC] sin respuesta
+07:27:20  [ENQ en sobre] sin respuesta
+07:27:23  [ENQ sobre+BCC] sin respuesta
+07:27:26  [sobre: STATUS?] sin respuesta
+07:27:29  [sobre+BCC: STATUS?] sin respuesta
+07:27:32  [sobre: STAT] sin respuesta
+07:27:34  [sobre+BCC: STAT] sin respuesta
+07:27:37  [sobre: INFO] sin respuesta
+07:27:40  [sobre+BCC: INFO] sin respuesta
+07:27:43  [sobre: ID] sin respuesta
+07:27:46  [sobre+BCC: ID] sin respuesta
+07:27:48  [sobre: VER] sin respuesta
+07:27:51  [sobre+BCC: VER] sin respuesta
+07:27:54  [sobre: VERSION] sin respuesta
+07:27:56  [sobre+BCC: VERSION] sin respuesta
+07:27:59  [sobre: GET STATUS] sin respuesta
+07:28:02  [sobre+BCC: GET STATUS] sin respuesta
+07:28:05  [sobre: READ] sin respuesta
+07:28:07  [sobre+BCC: READ] sin respuesta
+07:28:10  [sobre: POLL] sin respuesta
+07:28:13  [sobre+BCC: POLL] sin respuesta
+07:28:16  [sobre: GSV] sin respuesta
+07:28:18  [sobre+BCC: GSV] sin respuesta
+07:28:21  [sobre: CMS] sin respuesta
+07:28:24  [sobre+BCC: CMS] sin respuesta
+07:28:27  [sobre: HOST] sin respuesta
+07:28:29  [sobre+BCC: HOST] sin respuesta
+07:28:32  [sobre: PC] sin respuesta
+07:28:35  [sobre+BCC: PC] sin respuesta
+07:28:38  [sobre: TOTAL?] sin respuesta
+07:28:40  [sobre+BCC: TOTAL?] sin respuesta
+07:28:43  [sobre: RESULT?] sin respuesta
+07:28:46  [sobre+BCC: RESULT?] sin respuesta
+07:28:48  [sobre: DATA?] sin respuesta
+07:28:51  [sobre+BCC: DATA?] sin respuesta
+07:28:54  [sobre LEN+cmd 0x30] sin respuesta
+07:28:57  [sobre LEN+cmd 0x31] sin respuesta
+07:28:59  [sobre LEN+cmd 0x41] sin respuesta
+07:29:02  [sobre LEN+cmd 0x52] sin respuesta
+07:29:05  [sobre LEN+cmd 0x53] sin respuesta
+07:29:05  === FIN prueba 3 ===
