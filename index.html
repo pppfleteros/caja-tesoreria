@@ -57,6 +57,8 @@
   .glory { background: var(--verde-bg); color: var(--verde-tx); border: 1.5px solid var(--verde); border-radius: 10px; padding: 11px 13px; margin-bottom: 8px; font-size: 15px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .glory b { font-size: 18px; }
   .glory button { border: none; background: var(--verde); color: #fff; font-size: 14px; font-weight: 600; padding: 8px 14px; border-radius: 8px; white-space: nowrap; }
+  .glory.alerta { background: #fef3c7; color: #78350f; border-color: #f59e0b; }
+  .glory.alerta button { background: #b45309; }
   .oculto { display: none !important; }
   .spin { display: inline-block; width: 16px; height: 16px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: g .7s linear infinite; vertical-align: -3px; }
   @keyframes g { to { transform: rotate(360deg); } }
@@ -127,6 +129,12 @@ var EMPRESAS = ['LP', 'PPP', 'ELEBES', 'EL CHIRLO', 'SIN'];
 var estado = { tipo: 'E', moneda: 'ARS', emp: [], atajos: [], enviando: false };
 
 function $(id) { return document.getElementById(id); }
+/* evita que un detalle con caracteres raros rompa (o altere) la pantalla */
+function esc(t) {
+  return String(t == null ? '' : t)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
 function fmt(n) { return new Intl.NumberFormat('es-AR').format(Math.round(n)); }
 function fmtMon(n, m) { return (m === 'USD' ? 'US$ ' : '$ ') + fmt(n); }
 
@@ -182,8 +190,8 @@ function pintarEstado(d) {
     var div = document.createElement('div');
     div.className = 'mov';
     var signo = mv.tipo === 'E' ? '+' : '−';
-    div.innerHTML = '<div class="que">' + mv.detalle + (mv.empresas ? ' · ' + mv.empresas : '') +
-      '<div class="quien">' + mv.hora + ' · ' + mv.usuario + '</div></div>' +
+    div.innerHTML = '<div class="que">' + esc(mv.detalle) + (mv.empresas ? ' · ' + esc(mv.empresas) : '') +
+      '<div class="quien">' + esc(mv.hora) + ' · ' + esc(mv.usuario) + '</div></div>' +
       '<div class="cuanto ' + (mv.tipo === 'E' ? 'e' : 's') + '">' + signo + ' ' + fmtMon(mv.monto, mv.moneda) + '</div>';
     var b = document.createElement('button');
     b.textContent = '✕';
@@ -202,13 +210,17 @@ function refrescar() {
 }
 
 /* ---- conteo de la contadora Glory ---- */
-var conteoUsado = '';
+var conteoUsado = localStorage.getItem('conteoUsado') || '';
 function mostrarConteoGlory(c) {
   var caja = $('glory');
   // clave por sesión + monto: si agregás un billete, el monto cambia y se vuelve a mostrar
   var clave = c ? (c.sesion + ':' + c.valor) : '';
   if (!c || !c.valor || clave === conteoUsado) { caja.classList.add('oculto'); return; }
-  caja.innerHTML = '<span><i class="ti"></i>💵 La contadora contó<br><b>$ ' + fmt(c.valor) + '</b> <small>(' + c.billetes + ' billetes)</small></span>';
+  caja.classList.toggle('alerta', !!c.alerta);
+  var aviso = c.alerta
+    ? '<br><small>⚠️ Hay billetes que no reconozco: VERIFICÁ el monto contra el ticket.</small>'
+    : '';
+  caja.innerHTML = '<span>💵 La contadora contó<br><b>$ ' + fmt(c.valor) + '</b> <small>(' + c.billetes + ' billetes)</small>' + aviso + '</span>';
   var b = document.createElement('button');
   b.textContent = 'Usar';
   b.onclick = function () {
@@ -216,6 +228,7 @@ function mostrarConteoGlory(c) {
     [].forEach.call($('monedas').children, function (x) { x.classList.toggle('on', x.dataset.m === 'ARS'); });
     $('monto').value = '$ ' + fmt(c.valor);
     conteoUsado = clave;
+    try { localStorage.setItem('conteoUsado', clave); } catch (e) {}
     caja.classList.add('oculto');
   };
   caja.appendChild(b);
@@ -279,7 +292,7 @@ $('detalle').oninput = function () {
   caja.innerHTML = '';
   res.forEach(function (a) {
     var div = document.createElement('div');
-    div.innerHTML = '<span>' + a.d + '</span><small>' + (a.e || '') + '</small>';
+    div.innerHTML = '<span>' + esc(a.d) + '</span><small>' + esc(a.e || '') + '</small>';
     div.onclick = function () {
       $('detalle').value = a.d;
       caja.classList.add('oculto');
@@ -354,11 +367,20 @@ document.addEventListener('touchstart', toqueDeUso, { passive: true });
 document.addEventListener('mousedown', toqueDeUso);
 document.addEventListener('focusin', toqueDeUso);
 
-/* sondeo periódico: mientras la app está abierta, busca el conteo de la contadora */
+/* sondeo periódico liviano: solo pregunta por el conteo de la contadora.
+   No abre la planilla en el servidor (ahorra cuota de Google). */
+setInterval(function () {
+  if (document.hidden || $('app').classList.contains('oculto') || estado.enviando) return;
+  api({ accion: 'conteoRapido' })
+    .then(function (d) { mostrarConteoGlory(d.conteo); })
+    .catch(function () { /* silencioso: si falla, lo reintenta en el próximo ciclo */ });
+}, 5000);
+
+/* refresco completo (saldo y movimientos) cada 3 minutos mientras se usa */
 setInterval(function () {
   if (document.hidden || $('app').classList.contains('oculto') || estado.enviando) return;
   refrescar();
-}, 5000);
+}, 180000);
 
 /* arranque */
 pintarTipo();
