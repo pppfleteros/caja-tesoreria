@@ -147,9 +147,29 @@ function mostrarError(msg) {
 
 function api(cuerpo) {
   cuerpo.clave = localStorage.getItem('clave') || $('clave').value.trim();
-  return fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(cuerpo) })
-    .then(function (r) { return r.json(); })
-    .then(function (d) { if (d.error) throw new Error(d.error); return d; });
+  // corte por tiempo: si el servidor no responde, no dejamos la app colgada
+  var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  var corte = ctrl ? setTimeout(function () { ctrl.abort(); }, 25000) : null;
+  var opciones = { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(cuerpo) };
+  if (ctrl) opciones.signal = ctrl.signal;
+  return fetch(API_URL, opciones)
+    .then(function (r) {
+      if (corte) clearTimeout(corte);
+      return r.text().then(function (txt) {
+        try { return JSON.parse(txt); }
+        catch (e) { throw new Error('El servidor no respondió bien. Reintentá en un momento.'); }
+      });
+    })
+    .then(function (d) { if (d.error) throw new Error(d.error); return d; })
+    .catch(function (e) {
+      if (corte) clearTimeout(corte);
+      if (e.name === 'AbortError') throw new Error('El servidor tardó demasiado. Verificá si el movimiento se guardó antes de reintentar.');
+      throw e;
+    });
+}
+/* identificador único por confirmación (evita cargar dos veces si hay que reintentar) */
+function nuevoId() {
+  return 'C' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
 /* ---- login ---- */
@@ -180,9 +200,15 @@ function pintarEstado(d) {
   var hoy = new Date();
   var dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
   var meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-  $('fecha').textContent = dias[hoy.getDay()] + ' ' + hoy.getDate() + ' de ' + meses[hoy.getMonth()] + ' · ' + d.usuario;
+  // el día lo manda el servidor (la planilla), no el reloj del celular
+  var diaMostrar = d.dia || hoy.getDate();
+  var aviso = (d.dia && d.dia !== hoy.getDate()) ? ' ⚠️' : '';
+  $('fecha').textContent = dias[hoy.getDay()] + ' ' + diaMostrar + ' de ' + meses[hoy.getMonth()] + aviso + ' · ' + d.usuario;
   $('saldo').textContent = '$ ' + fmt(d.saldo);
-  $('saldoUsd').textContent = d.saldoUsd ? 'Dólares: US$ ' + fmt(d.saldoUsd) : '';
+  $('saldo').style.opacity = d.saldoDudoso ? '0.55' : '1';
+  $('saldoUsd').textContent = d.saldoDudoso
+    ? '⚠️ Revisá el saldo anterior en la planilla'
+    : (d.saldoUsd ? 'Dólares: US$ ' + fmt(d.saldoUsd) : '');
   var m = $('movs');
   if (!d.movimientos || !d.movimientos.length) { m.className = 'aviso'; m.textContent = 'Todavía no hay movimientos hoy.'; return; }
   m.className = ''; m.innerHTML = '';
@@ -330,8 +356,11 @@ $('confirmar').onclick = function () {
   estado.enviando = true;
   var b = $('confirmar');
   b.disabled = true; b.innerHTML = '<span class="spin"></span>';
-  api({ accion: 'agregar', tipo: estado.tipo, moneda: estado.moneda, monto: monto, detalle: detalle, empresas: empresas })
+  // el mismo id en los reintentos evita que se cargue la plata dos veces
+  if (!estado.idPendiente) estado.idPendiente = nuevoId();
+  api({ accion: 'agregar', tipo: estado.tipo, moneda: estado.moneda, monto: monto, detalle: detalle, empresas: empresas, idCliente: estado.idPendiente })
     .then(function () {
+      estado.idPendiente = null;
       $('detalle').value = ''; $('monto').value = '';
       estado.emp = []; pintarEmp();
       return refrescar();
