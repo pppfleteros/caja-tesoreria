@@ -205,7 +205,9 @@ function refrescar() {
 var conteoUsado = '';
 function mostrarConteoGlory(c) {
   var caja = $('glory');
-  if (!c || !c.valor || c.sesion === conteoUsado) { caja.classList.add('oculto'); return; }
+  // clave por sesión + monto: si agregás un billete, el monto cambia y se vuelve a mostrar
+  var clave = c ? (c.sesion + ':' + c.valor) : '';
+  if (!c || !c.valor || clave === conteoUsado) { caja.classList.add('oculto'); return; }
   caja.innerHTML = '<span><i class="ti"></i>💵 La contadora contó<br><b>$ ' + fmt(c.valor) + '</b> <small>(' + c.billetes + ' billetes)</small></span>';
   var b = document.createElement('button');
   b.textContent = 'Usar';
@@ -213,7 +215,7 @@ function mostrarConteoGlory(c) {
     estado.moneda = 'ARS';
     [].forEach.call($('monedas').children, function (x) { x.classList.toggle('on', x.dataset.m === 'ARS'); });
     $('monto').value = '$ ' + fmt(c.valor);
-    conteoUsado = c.sesion;
+    conteoUsado = clave;
     caja.classList.add('oculto');
   };
   caja.appendChild(b);
