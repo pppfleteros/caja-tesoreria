@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prueba USB · Contadora</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; background: #f3f4f6; color: #111827; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  p.sub { font-size: 13px; color: #6b7280; margin: 0 0 16px; }
+  button { width: 100%; padding: 15px; font-size: 16px; font-weight: 600; border: none; border-radius: 12px; background: #2563eb; color: #fff; margin-bottom: 10px; }
+  button.sec { background: #059669; }
+  button:disabled { opacity: .5; }
+  pre { background: #fff; border: 1px solid #d1d5db; border-radius: 10px; padding: 12px; font-size: 12px; white-space: pre-wrap; word-break: break-all; min-height: 120px; }
+  .aviso { background: #fef3c7; color: #78350f; padding: 10px 12px; border-radius: 10px; font-size: 13px; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+<h1>Prueba de conexión USB</h1>
+<p class="sub">Contadora Glory ↔ celular, sin red</p>
+
+<div class="aviso">
+  <b>Antes de empezar:</b><br>
+  1. Cable del <b>USB cuadrado</b> de la contadora al celular.<br>
+  2. En Ajustes de USB del celu: <b>"USB controlado por → Este dispositivo"</b>.<br>
+  3. Tocá el botón de abajo y elegí la contadora en la lista.
+</div>
+
+<button id="buscar">1 · Buscar la contadora</button>
+<button id="leer" class="sec" disabled>2 · Pedirle datos</button>
+<pre id="log">Esperando…</pre>
+
+<script>
+var dispositivo = null, epIn = null, epOut = null;
+function log(t) { var l = document.getElementById('log'); l.textContent = t + '\n\n' + l.textContent; }
+
+if (!navigator.usb) {
+  log('❌ Este navegador no permite USB.\nUsá Chrome en Android (no Firefox, no el navegador de Samsung).');
+  document.getElementById('buscar').disabled = true;
+}
+
+document.getElementById('buscar').onclick = function () {
+  navigator.usb.requestDevice({ filters: [] }).then(function (d) {
+    dispositivo = d;
+    log('✅ APARATO ELEGIDO\n' +
+        'Fabricante: ' + (d.manufacturerName || '(sin nombre)') + '\n' +
+        'Producto: ' + (d.productName || '(sin nombre)') + '\n' +
+        'ID fabricante: 0x' + d.vendorId.toString(16) + '\n' +
+        'ID producto: 0x' + d.productId.toString(16) + '\n' +
+        'Clase: ' + d.deviceClass);
+    return d.open();
+  }).then(function () {
+    log('✅ Abierto correctamente');
+    if (dispositivo.configuration === null) return dispositivo.selectConfiguration(1);
+  }).then(function () {
+    var texto = '--- INTERFACES ---\n';
+    dispositivo.configuration.interfaces.forEach(function (i) {
+      i.alternates.forEach(function (a) {
+        texto += 'Interfaz ' + i.interfaceNumber + ' clase ' + a.interfaceClass + ' subclase ' + a.interfaceSubclass + '\n';
+        a.endpoints.forEach(function (e) {
+          texto += '   canal ' + e.endpointNumber + ' ' + e.direction + ' (' + e.type + ')\n';
+          if (e.direction === 'in' && !epIn) epIn = e.endpointNumber;
+          if (e.direction === 'out' && !epOut) epOut = e.endpointNumber;
+        });
+      });
+    });
+    log(texto);
+    return dispositivo.claimInterface(dispositivo.configuration.interfaces[0].interfaceNumber);
+  }).then(function () {
+    log('✅ Interfaz tomada. Canal entrada: ' + epIn + ' / salida: ' + epOut);
+    document.getElementById('leer').disabled = false;
+  }).catch(function (e) {
+    log('⚠️ ' + e.name + ': ' + e.message);
+  });
+};
+
+document.getElementById('leer').onclick = function () {
+  if (!dispositivo || !epOut) { log('Falta elegir el aparato primero'); return; }
+  // ENQ = el saludo que la contadora entiende (0x05)
+  dispositivo.transferOut(epOut, new Uint8Array([0x05])).then(function () {
+    log('→ mandé el saludo (ENQ)');
+    return dispositivo.transferIn(epIn, 256);
+  }).then(function (r) {
+    var b = new Uint8Array(r.data.buffer);
+    var hex = [], txt = '';
+    for (var i = 0; i < b.length; i++) {
+      hex.push(('0' + b[i].toString(16)).slice(-2));
+      txt += (b[i] >= 32 && b[i] <= 126) ? String.fromCharCode(b[i]) : '.';
+    }
+    log('🎉 ¡RESPONDIÓ!\nHEX: ' + hex.join(' ') + '\nTEXTO: ' + txt);
+  }).catch(function (e) {
+    log('⚠️ ' + e.name + ': ' + e.message);
+  });
+};
+</script>
+</body>
+</html>
