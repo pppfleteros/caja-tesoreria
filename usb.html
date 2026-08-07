@@ -28,6 +28,8 @@
 
 <button id="buscar">1 · Buscar la contadora</button>
 <button id="leer" class="sec" disabled>2 · Pedirle datos</button>
+<button id="probar" class="sec" disabled>3 · Probar varios saludos</button>
+<button id="escuchar" class="sec" disabled>4 · Solo escuchar 20 segundos</button>
 <pre id="log">Esperando…</pre>
 
 <script>
@@ -69,9 +71,70 @@ document.getElementById('buscar').onclick = function () {
   }).then(function () {
     log('✅ Interfaz tomada. Canal entrada: ' + epIn + ' / salida: ' + epOut);
     document.getElementById('leer').disabled = false;
+    document.getElementById('probar').disabled = false;
+    document.getElementById('escuchar').disabled = false;
   }).catch(function (e) {
     log('⚠️ ' + e.name + ': ' + e.message);
   });
+};
+
+// lee con limite de tiempo, para no quedar colgado esperando
+function leerConLimite(ms) {
+  return Promise.race([
+    dispositivo.transferIn(epIn, 512).then(function (r) {
+      var b = new Uint8Array(r.data.buffer);
+      if (!b.length) return null;
+      var hex = [], txt = '';
+      for (var i = 0; i < b.length; i++) {
+        hex.push(('0' + b[i].toString(16)).slice(-2));
+        txt += (b[i] >= 32 && b[i] <= 126) ? String.fromCharCode(b[i]) : '.';
+      }
+      return { hex: hex.join(' '), txt: txt };
+    }),
+    new Promise(function (res) { setTimeout(function () { res('TIMEOUT'); }, ms); })
+  ]);
+}
+
+document.getElementById('probar').onclick = function () {
+  var saludos = [
+    { n: 'ENQ crudo',        b: [0x05] },
+    { n: 'SOH+ENQ',          b: [0x01, 0x05] },
+    { n: 'STX ENQ ETX',      b: [0x02, 0x05, 0x03] },
+    { n: 'ACK',              b: [0x06] },
+    { n: 'EOT',              b: [0x04] },
+    { n: 'CR LF',            b: [0x0d, 0x0a] },
+    { n: 'ENQ x3',           b: [0x05, 0x05, 0x05] },
+    { n: 'SOH 0000 ETX',     b: [0x01, 0x30, 0x30, 0x30, 0x30, 0x03] },
+    { n: 'NUL',              b: [0x00] }
+  ];
+  var i = 0;
+  log('--- probando ' + saludos.length + ' saludos distintos ---');
+  function siguiente() {
+    if (i >= saludos.length) { log('--- fin de la ronda ---'); return; }
+    var s = saludos[i++];
+    dispositivo.transferOut(epOut, new Uint8Array(s.b))
+      .then(function () { return leerConLimite(2500); })
+      .then(function (r) {
+        if (r === 'TIMEOUT' || r === null) { log('[' + s.n + '] sin respuesta'); }
+        else { log('🎉 [' + s.n + '] RESPONDIO!\nHEX: ' + r.hex + '\nTEXTO: ' + r.txt); }
+        setTimeout(siguiente, 300);
+      })
+      .catch(function (e) { log('[' + s.n + '] error: ' + e.message); setTimeout(siguiente, 300); });
+  }
+  siguiente();
+};
+
+document.getElementById('escuchar').onclick = function () {
+  log('--- escuchando 20 segundos (proba contar unos billetes ahora) ---');
+  var fin = Date.now() + 20000;
+  function ciclo() {
+    if (Date.now() > fin) { log('--- fin de la escucha ---'); return; }
+    leerConLimite(3000).then(function (r) {
+      if (r && r !== 'TIMEOUT') { log('🎉 LLEGO ALGO SOLO!\nHEX: ' + r.hex + '\nTEXTO: ' + r.txt); }
+      ciclo();
+    }).catch(function (e) { log('error: ' + e.message); });
+  }
+  ciclo();
 };
 
 document.getElementById('leer').onclick = function () {
