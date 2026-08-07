@@ -19,44 +19,47 @@
   body { font-family: system-ui, -apple-system, sans-serif; background: var(--fondo); color: var(--texto); padding-bottom: 40px; }
   .wrap { max-width: 480px; margin: 0 auto; padding: 12px; }
   .card { background: var(--card); border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-  h1 { font-size: 15px; color: var(--gris); font-weight: 500; text-align: center; padding: 10px 0 2px; }
+  h1 { font-size: 17px; color: var(--gris); font-weight: 500; text-align: center; padding: 10px 0 2px; }
+  /* la tarjeta del saldo queda fija arriba; solo se desplaza lo de abajo */
+  .fijo { position: sticky; top: 0; z-index: 30; background: var(--fondo); padding-top: 12px; margin: -12px -12px 0; padding-left: 12px; padding-right: 12px; }
+  .fijo .card { box-shadow: 0 2px 10px rgba(0,0,0,.13); }
   .saldo { text-align: center; position: relative; }
-  #btnRefrescar { position: absolute; top: 8px; right: 8px; border: none; background: none; font-size: 22px; color: var(--gris); padding: 6px; }
+  #btnRefrescar { position: absolute; top: 8px; right: 8px; border: none; background: none; font-size: 24px; color: var(--gris); padding: 6px; }
   #btnRefrescar.girando { animation: g 1s linear infinite; }
-  .saldo .fecha { font-size: 13px; color: var(--gris); }
-  .saldo .monto { font-size: 32px; font-weight: 700; margin: 2px 0; }
-  .saldo .usd { font-size: 14px; color: var(--gris); }
-  label { display: block; font-size: 12px; color: var(--gris); margin: 10px 0 5px; }
+  .saldo .fecha { font-size: 15px; color: var(--gris); }
+  .saldo .monto { font-size: 36px; font-weight: 700; margin: 2px 0; }
+  .saldo .usd { font-size: 16px; color: var(--gris); }
+  label { display: block; font-size: 14px; color: var(--gris); margin: 12px 0 6px; }
   .fila { display: flex; gap: 8px; }
-  .btn-tipo { flex: 1; padding: 13px 0; font-size: 16px; font-weight: 600; border-radius: 10px; border: 1.5px solid var(--borde); background: var(--card); color: var(--gris); }
+  .btn-tipo { flex: 1; padding: 14px 0; font-size: 18px; font-weight: 600; border-radius: 10px; border: 1.5px solid var(--borde); background: var(--card); color: var(--gris); }
   .btn-tipo.entrada.on { background: var(--verde-bg); border-color: var(--verde); color: var(--verde-tx); }
   .btn-tipo.salida.on { background: var(--rojo-bg); border-color: var(--rojo); color: var(--rojo-tx); }
   .chips { display: flex; gap: 6px; flex-wrap: wrap; }
-  .chip { padding: 9px 14px; border-radius: 999px; border: 1.5px solid var(--borde); background: var(--card); font-size: 14px; color: var(--gris); }
+  .chip { padding: 10px 16px; border-radius: 999px; border: 1.5px solid var(--borde); background: var(--card); font-size: 16px; color: var(--gris); }
   .chip.on { background: var(--azul-bg); border-color: var(--azul); color: var(--azul-tx); font-weight: 600; }
-  input[type=text], input[type=tel], input[type=password] { width: 100%; padding: 12px; font-size: 16px; border: 1.5px solid var(--borde); border-radius: 10px; background: var(--card); color: var(--texto); }
+  input[type=text], input[type=tel], input[type=password] { width: 100%; padding: 13px; font-size: 18px; border: 1.5px solid var(--borde); border-radius: 10px; background: var(--card); color: var(--texto); }
   input:focus { outline: none; border-color: var(--azul); }
-  #monto { font-size: 22px; font-weight: 600; }
+  #monto { font-size: 25px; font-weight: 600; }
   .sug { border: 1.5px solid var(--borde); border-radius: 10px; margin-top: 4px; overflow: hidden; background: var(--card); }
-  .sug div { padding: 11px 13px; font-size: 15px; border-top: 1px solid #eee; display: flex; justify-content: space-between; }
+  .sug div { padding: 13px 14px; font-size: 17px; border-top: 1px solid #eee; display: flex; justify-content: space-between; }
   .sug div:first-child { border-top: none; }
-  .sug small { color: var(--gris); }
-  .confirmar { width: 100%; margin-top: 16px; padding: 15px 0; font-size: 17px; font-weight: 700; color: #fff; border: none; border-radius: 12px; background: var(--verde); }
+  .sug small { color: var(--gris); font-size: 15px; }
+  .confirmar { width: 100%; margin-top: 16px; padding: 16px 0; font-size: 19px; font-weight: 700; color: #fff; border: none; border-radius: 12px; background: var(--verde); }
   .confirmar.salida { background: var(--rojo); }
   .confirmar:disabled { opacity: .5; }
-  .mov { display: flex; align-items: center; gap: 8px; padding: 9px 0; border-top: 1px solid #eee; font-size: 14px; }
+  .mov { display: flex; align-items: center; gap: 8px; padding: 11px 0; border-top: 1px solid #eee; font-size: 16px; }
   .mov:first-child { border-top: none; }
   .mov .que { flex: 1; }
-  .mov .quien { font-size: 12px; color: var(--gris); }
+  .mov .quien { font-size: 14px; color: var(--gris); }
   .mov .cuanto { font-weight: 600; white-space: nowrap; }
   .mov .cuanto.e { color: var(--verde); }
   .mov .cuanto.s { color: var(--rojo); }
-  .mov button { border: none; background: none; color: var(--gris); font-size: 18px; padding: 4px 6px; }
-  .aviso { text-align: center; font-size: 14px; color: var(--gris); padding: 8px 0; }
-  .error { background: var(--rojo-bg); color: var(--rojo-tx); padding: 10px 14px; border-radius: 10px; font-size: 14px; margin-bottom: 10px; display: none; }
-  .glory { background: var(--verde-bg); color: var(--verde-tx); border: 1.5px solid var(--verde); border-radius: 10px; padding: 11px 13px; margin-bottom: 8px; font-size: 15px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-  .glory b { font-size: 18px; }
-  .glory button { border: none; background: var(--verde); color: #fff; font-size: 14px; font-weight: 600; padding: 8px 14px; border-radius: 8px; white-space: nowrap; }
+  .mov button { border: none; background: none; color: var(--gris); font-size: 20px; padding: 4px 6px; }
+  .aviso { text-align: center; font-size: 16px; color: var(--gris); padding: 8px 0; }
+  .error { background: var(--rojo-bg); color: var(--rojo-tx); padding: 11px 14px; border-radius: 10px; font-size: 16px; margin-bottom: 10px; display: none; }
+  .glory { background: var(--verde-bg); color: var(--verde-tx); border: 1.5px solid var(--verde); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; font-size: 17px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .glory b { font-size: 21px; }
+  .glory button { border: none; background: var(--verde); color: #fff; font-size: 16px; font-weight: 600; padding: 10px 16px; border-radius: 8px; white-space: nowrap; }
   .glory.alerta { background: #fef3c7; color: #78350f; border-color: #f59e0b; }
   .glory.alerta button { background: #b45309; }
   .oculto { display: none !important; }
@@ -82,12 +85,14 @@
   </div>
 
   <div id="app" class="oculto">
+    <div class="fijo">
     <div class="card saldo">
       <button id="btnRefrescar" title="Actualizar">⟳</button>
       <div class="fecha" id="fecha"></div>
-      <div style="font-size:13px;color:var(--gris)">Saldo en efectivo</div>
+      <div style="font-size:15px;color:var(--gris)">Saldo en efectivo</div>
       <div class="monto" id="saldo">—</div>
       <div class="usd" id="saldoUsd"></div>
+    </div>
     </div>
 
     <div class="card">
