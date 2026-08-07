@@ -1,4 +1,4 @@
-var CACHE = 'caja-v8';
+var CACHE = 'caja-v9';
 var ARCHIVOS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', function (e) {
