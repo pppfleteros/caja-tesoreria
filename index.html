@@ -139,7 +139,7 @@
     </div>
     <!-- Sirve para saber de un vistazo si un celular quedó con una versión
          vieja: si dos aparatos muestran versiones distintas, uno no actualizó. -->
-    <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">versión 13</div>
+    <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">versión 14</div>
   </div>
 </div>
 
@@ -476,19 +476,25 @@ document.addEventListener('focusin', toqueDeUso);
    Se comía la cuota diaria y la app tiraba errores de servidor.
    Ahora el próximo pedido se agenda RECIÉN cuando terminó el anterior, y si
    falla se afloja el ritmo solo. NO volver a poner setInterval acá. */
+/* SOLO PREGUNTA EL APARATO QUE SE ESTÁ USANDO.
+   Un celular con la app abierta pero quieto NO le pregunta nada al servidor.
+   Recién cuando alguien lo toca (que es cuando va a cargar un movimiento)
+   empieza a preguntar, y deja de hacerlo al minuto de quedarse quieto. */
+var ACTIVO_MS = 60000;
 var pausaConteo = 5000;
-function ritmoConteo() {
-  // rápido solo si alguien tocó la app hace poco; si quedó abierta y quieta, tranquilo
-  return (Date.now() - ultimoToque < 180000) ? 5000 : 30000;
-}
+
+function seEstaUsando() { return (Date.now() - ultimoToque) < ACTIVO_MS; }
+
 function cicloConteo() {
-  // dormido (pantalla apagada, app pausada, sin login o enviando): NO se pregunta nada
-  if (document.hidden || pausado || $('app').classList.contains('oculto') || estado.enviando) {
-    setTimeout(cicloConteo, 15000);
+  // dormido (pantalla apagada, app pausada, sin login, enviando, o nadie
+  // tocando el aparato): NO se le pregunta NADA al servidor
+  if (document.hidden || pausado || $('app').classList.contains('oculto') ||
+      estado.enviando || !seEstaUsando()) {
+    setTimeout(cicloConteo, 5000);
     return;
   }
   api({ accion: 'conteoRapido' })
-    .then(function (d) { mostrarConteoGlory(d.conteo); pausaConteo = ritmoConteo(); })
+    .then(function (d) { mostrarConteoGlory(d.conteo); pausaConteo = 5000; })
     .catch(function () { pausaConteo = Math.min(pausaConteo * 2, 60000); })
     .then(function () { setTimeout(cicloConteo, pausaConteo); });
 }
@@ -499,7 +505,8 @@ setTimeout(cicloConteo, 5000);
    refresco de fondo (el usuario no pidió nada, no tiene que ver un error). */
 var pausaRefresco = 180000;
 function cicloRefresco() {
-  if (document.hidden || pausado || $('app').classList.contains('oculto') || estado.enviando) {
+  if (document.hidden || pausado || $('app').classList.contains('oculto') ||
+      estado.enviando || !seEstaUsando()) {
     setTimeout(cicloRefresco, 60000);
     return;
   }
