@@ -127,7 +127,8 @@
 
       <label>Monto</label>
       <div id="glory" class="glory oculto"></div>
-      <input type="tel" id="monto" inputmode="numeric" placeholder="$ 0">
+      <!-- autocomplete off: sin esto el navegador ofrece montos tecleados antes -->
+      <input type="tel" id="monto" inputmode="numeric" placeholder="$ 0" autocomplete="off">
 
       <button class="confirmar" id="confirmar">Confirmar ingreso</button>
     </div>
@@ -138,7 +139,7 @@
     </div>
     <!-- Sirve para saber de un vistazo si un celular quedó con una versión
          vieja: si dos aparatos muestran versiones distintas, uno no actualizó. -->
-    <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">versión 17</div>
+    <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">versión 18</div>
   </div>
 </div>
 
