@@ -84,6 +84,18 @@
     <button class="confirmar" id="entrar" style="margin-top:12px">Entrar</button>
   </div>
 
+  <!-- Pausa por inactividad: mientras está visible, la app NO le pregunta nada
+       al servidor. Sirve para que un celular abierto y olvidado no siga
+       consumiendo la cuota de Google. -->
+  <div class="card oculto" id="pausa" style="text-align:center">
+    <div style="font-size:40px;margin-bottom:8px">😴</div>
+    <label style="font-size:16px">La app se pausó sola porque no se usó por un rato.</label>
+    <p style="color:var(--gris);font-size:14px;margin:8px 0 14px">
+      En pausa no le consume nada al servidor.
+    </p>
+    <button class="confirmar" id="btnSeguir">Continuar</button>
+  </div>
+
   <div id="app" class="oculto">
     <div class="fijo">
     <div class="card saldo">
@@ -389,16 +401,66 @@ document.addEventListener('visibilitychange', function () {
   if (!document.hidden && localStorage.getItem('clave') && !$('app').classList.contains('oculto')) refrescar();
 });
 
+/* ---- PAUSA POR INACTIVIDAD ----
+   Un celular abierto y olvidado seguía preguntándole al servidor todo el día
+   y se comía la cuota de Google. Ahora, a los 3 minutos sin que nadie toque
+   nada, la app se pausa: deja de pedir CUALQUIER cosa al servidor.
+   Y a los 30 minutos cierra la sesión del todo (pide la clave de nuevo).
+   Se despausa sola al tocar la pantalla. */
+var PAUSA_MS  = 180000;    // 3 minutos sin uso -> pausa
+var CIERRE_MS = 1800000;   // 30 minutos sin uso -> cierra sesión
+var pausado = false;
+
+function estaPausado() { return pausado; }
+
+function pausar() {
+  if (pausado || $('app').classList.contains('oculto')) return;
+  pausado = true;
+  $('app').classList.add('oculto');
+  $('pausa').classList.remove('oculto');
+}
+
+function despausar() {
+  if (!pausado) return;
+  pausado = false;
+  $('pausa').classList.add('oculto');
+  $('app').classList.remove('oculto');
+  pausaConteo = 5000;
+  pausaRefresco = 180000;
+  refrescar();
+}
+
+function cerrarSesion() {
+  localStorage.removeItem('clave');
+  pausado = false;
+  $('pausa').classList.add('oculto');
+  $('app').classList.add('oculto');
+  $('login').classList.remove('oculto');
+  $('entrar').textContent = 'Entrar';
+  $('clave').value = '';
+}
+
 /* si la app quedó quieta y la vuelven a tocar, se actualiza sola */
 var ultimaAct = Date.now();
 var ultimoToque = Date.now();   // marca de actividad: la usa el ritmo del sondeo
 function toqueDeUso() {
   ultimoToque = Date.now();
+  if (pausado) return;   // despausar se hace con el botón, no con cualquier roce
   if ($('app').classList.contains('oculto') || estado.enviando) return;
   if (Date.now() - ultimaAct < 60000) return;
   ultimaAct = Date.now();
   refrescar();
 }
+
+$('btnSeguir').onclick = despausar;
+
+/* reloj de inactividad: no habla con el servidor, solo mira el reloj */
+setInterval(function () {
+  if (!localStorage.getItem('clave')) return;
+  var quieto = Date.now() - ultimoToque;
+  if (quieto >= CIERRE_MS) { cerrarSesion(); return; }
+  if (quieto >= PAUSA_MS) pausar();
+}, 20000);
 document.addEventListener('touchstart', toqueDeUso, { passive: true });
 document.addEventListener('mousedown', toqueDeUso);
 document.addEventListener('focusin', toqueDeUso);
@@ -417,8 +479,9 @@ function ritmoConteo() {
   return (Date.now() - ultimoToque < 180000) ? 5000 : 30000;
 }
 function cicloConteo() {
-  if (document.hidden || $('app').classList.contains('oculto') || estado.enviando) {
-    setTimeout(cicloConteo, pausaConteo);
+  // dormido (pantalla apagada, app pausada, sin login o enviando): NO se pregunta nada
+  if (document.hidden || pausado || $('app').classList.contains('oculto') || estado.enviando) {
+    setTimeout(cicloConteo, 15000);
     return;
   }
   api({ accion: 'conteoRapido' })
@@ -433,8 +496,8 @@ setTimeout(cicloConteo, 5000);
    refresco de fondo (el usuario no pidió nada, no tiene que ver un error). */
 var pausaRefresco = 180000;
 function cicloRefresco() {
-  if (document.hidden || $('app').classList.contains('oculto') || estado.enviando) {
-    setTimeout(cicloRefresco, pausaRefresco);
+  if (document.hidden || pausado || $('app').classList.contains('oculto') || estado.enviando) {
+    setTimeout(cicloRefresco, 60000);
     return;
   }
   api({ accion: 'estado' })
