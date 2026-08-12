@@ -138,7 +138,7 @@
     </div>
     <!-- Sirve para saber de un vistazo si un celular quedó con una versión
          vieja: si dos aparatos muestran versiones distintas, uno no actualizó. -->
-    <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">versión 16</div>
+    <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">versión 17</div>
   </div>
 </div>
 
@@ -502,10 +502,12 @@ var pausaConteo = 5000;
 function seEstaUsando() { return (Date.now() - ultimoToque) < ACTIVO_MS; }
 
 function cicloConteo() {
-  // dormido (pantalla apagada, app pausada, sin login, enviando, o nadie
-  // tocando el aparato): NO se le pregunta NADA al servidor
-  if (document.hidden || pausado || $('app').classList.contains('oculto') ||
-      estado.enviando || !seEstaUsando()) {
+  // OJO: acá NO va seEstaUsando(). En recepción primero se cuenta en la
+  // contadora (sin tocar el celular) y recién después se mira el celular
+  // esperando la tarjetita: si esta pregunta dependiera de tocar el celular,
+  // la tarjetita no aparecería nunca (pasó el 12/8). Con la app a la vista
+  // se pregunta siempre; pantalla apagada, segundo plano o pausa ya cortan.
+  if (document.hidden || pausado || $('app').classList.contains('oculto') || estado.enviando) {
     setTimeout(cicloConteo, 5000);
     return;
   }
