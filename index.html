@@ -84,12 +84,11 @@
     <button class="confirmar" id="entrar" style="margin-top:12px">Entrar</button>
   </div>
 
-  <!-- Pausa por inactividad: mientras está visible, la app NO le pregunta nada
-       al servidor. Sirve para que un celular abierto y olvidado no siga
-       consumiendo la cuota de Google. -->
+  <!-- Pantalla de pausa: aparece solo cuando la app estuvo en segundo plano un
+       rato largo. Con la app a la vista NUNCA se pausa. -->
   <div class="card oculto" id="pausa" style="text-align:center">
     <div style="font-size:40px;margin-bottom:8px">😴</div>
-    <label style="font-size:16px">La app se pausó sola porque no se usó por un rato.</label>
+    <label style="font-size:16px">La app estuvo cerrada un rato y se pausó sola.</label>
     <p style="color:var(--gris);font-size:14px;margin:8px 0 14px">
       En pausa no le consume nada al servidor.
     </p>
@@ -139,7 +138,7 @@
     </div>
     <!-- Sirve para saber de un vistazo si un celular quedó con una versión
          vieja: si dos aparatos muestran versiones distintas, uno no actualizó. -->
-    <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">versión 14</div>
+    <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">versión 15</div>
   </div>
 </div>
 
@@ -400,19 +399,36 @@ $('btnRefrescar').onclick = function () {
   b.classList.add('girando');
   refrescar().then(function () { b.classList.remove('girando'); });
 };
+/* Entrar y salir de segundo plano: acá se decide si hay que pausar o cerrar. */
 document.addEventListener('visibilitychange', function () {
-  if (!document.hidden && localStorage.getItem('clave') && !$('app').classList.contains('oculto')) refrescar();
+  if (document.hidden) {              // se fue a segundo plano: anotamos la hora
+    if (!ocultoDesde) ocultoDesde = Date.now();
+    return;
+  }
+
+  var afuera = ocultoDesde ? (Date.now() - ocultoDesde) : 0;
+  ocultoDesde = 0;
+  ultimoToque = Date.now();           // volver a la app cuenta como usarla
+
+  if (!localStorage.getItem('clave')) return;
+  if (afuera >= CIERRE_MS) { cerrarSesion(); return; }
+  if (afuera >= PAUSA_MS) { pausar(); return; }
+  if (!pausado && !$('app').classList.contains('oculto')) refrescar();
 });
 
-/* ---- PAUSA POR INACTIVIDAD ----
-   Un celular abierto y olvidado seguía preguntándole al servidor todo el día
-   y se comía la cuota de Google. Ahora, a los 3 minutos sin que nadie toque
-   nada, la app se pausa: deja de pedir CUALQUIER cosa al servidor.
-   Y a los 30 minutos cierra la sesión del todo (pide la clave de nuevo).
-   Se despausa sola al tocar la pantalla. */
-var PAUSA_MS  = 180000;    // 3 minutos sin uso -> pausa
-var CIERRE_MS = 1800000;   // 30 minutos sin uso -> cierra sesión
+/* ---- PAUSA SOLO EN SEGUNDO PLANO ----
+   Decisión de Lucas (12/8): con la app ABIERTA y la pantalla encendida NO se
+   pausa nunca, por más que nadie la toque. Se pausa únicamente si quedó en
+   segundo plano (otra app encima, o pantalla apagada) un rato largo.
+   Igual, con la app abierta y quieta tampoco se le pide nada al servidor:
+   de eso se encarga seEstaUsando(), más abajo.
+   El tiempo en segundo plano se mide al VOLVER, no con un temporizador: los
+   celulares congelan los temporizadores de las apps que no están a la vista,
+   así que un reloj corriendo de fondo no sería confiable. */
+var PAUSA_MS  = 180000;    // 3 minutos en segundo plano -> pausa
+var CIERRE_MS = 1800000;   // 30 minutos en segundo plano -> cierra sesión
 var pausado = false;
+var ocultoDesde = 0;       // cuándo se fue a segundo plano (0 = está a la vista)
 
 function estaPausado() { return pausado; }
 
@@ -456,14 +472,6 @@ function toqueDeUso() {
 }
 
 $('btnSeguir').onclick = despausar;
-
-/* reloj de inactividad: no habla con el servidor, solo mira el reloj */
-setInterval(function () {
-  if (!localStorage.getItem('clave')) return;
-  var quieto = Date.now() - ultimoToque;
-  if (quieto >= CIERRE_MS) { cerrarSesion(); return; }
-  if (quieto >= PAUSA_MS) pausar();
-}, 20000);
 document.addEventListener('touchstart', toqueDeUso, { passive: true });
 document.addEventListener('mousedown', toqueDeUso);
 document.addEventListener('focusin', toqueDeUso);
