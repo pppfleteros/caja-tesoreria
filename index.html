@@ -138,7 +138,7 @@
     </div>
     <!-- Sirve para saber de un vistazo si un celular quedó con una versión
          vieja: si dos aparatos muestran versiones distintas, uno no actualizó. -->
-    <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">versión 15</div>
+    <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">versión 16</div>
   </div>
 </div>
 
@@ -212,9 +212,17 @@ function iniciar(d) {
 }
 
 /* ---- UI principal ---- */
-function pintarEstado(d) {
+function pintarEstado(d, esCache) {
   ultimaAct = Date.now();
   estado.atajos = d.atajos || [];
+  // guardamos lo pintado para poder mostrarlo AL INSTANTE la próxima vez que
+  // se abra la app, mientras llega lo fresco del servidor
+  if (!esCache) {
+    try {
+      var copia = {}; for (var k in d) { if (k !== 'conteo') copia[k] = d[k]; }
+      localStorage.setItem('cacheEstado', JSON.stringify(copia));
+    } catch (e) {}
+  }
   mostrarConteoGlory(d.conteo);
   var hoy = new Date();
   var dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -529,9 +537,37 @@ setTimeout(cicloRefresco, 180000);
 pintarTipo();
 if (localStorage.getItem('clave')) {
   $('login').classList.add('oculto');
+
+  // PINTURA INSTANTÁNEA: mostramos lo último que se vio (guardado en el
+  // celular) apenas se abre, con un cartelito de "actualizando", en vez de
+  // dejar la pantalla en blanco mientras el servidor responde.
+  var cacheE = null;
+  try { cacheE = JSON.parse(localStorage.getItem('cacheEstado') || 'null'); } catch (e) {}
+  if (cacheE) {
+    pintarEstado(cacheE, true);
+    $('app').classList.remove('oculto');
+    $('fecha').textContent += ' · ⏳ actualizando…';
+  }
+
   api({ accion: 'estado' })
     .then(function (d) { pintarEstado(d); $('app').classList.remove('oculto'); })
-    .catch(function () { localStorage.removeItem('clave'); $('login').classList.remove('oculto'); });
+    .catch(function (e) {
+      // OJO: acá antes se cerraba la sesión ante CUALQUIER error, incluso si
+      // el servidor simplemente tardó. Con el servidor lento eso echaba al
+      // usuario y lo obligaba a reteclear la clave. Ahora solo se cierra si
+      // el servidor dijo de verdad que la clave está mal.
+      if (/clave|bloquead/i.test(e.message || '')) {
+        localStorage.removeItem('clave');
+        localStorage.removeItem('cacheEstado');
+        $('app').classList.add('oculto');
+        $('login').classList.remove('oculto');
+      } else if (cacheE) {
+        mostrarError('El servidor está lento: esto es lo último guardado. Tocá ⟳ para reintentar.');
+      } else {
+        $('login').classList.remove('oculto');
+        mostrarError(e.message);
+      }
+    });
 }
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 </script>
