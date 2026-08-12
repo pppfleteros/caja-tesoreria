@@ -391,7 +391,9 @@ document.addEventListener('visibilitychange', function () {
 
 /* si la app quedó quieta y la vuelven a tocar, se actualiza sola */
 var ultimaAct = Date.now();
+var ultimoToque = Date.now();   // marca de actividad: la usa el ritmo del sondeo
 function toqueDeUso() {
+  ultimoToque = Date.now();
   if ($('app').classList.contains('oculto') || estado.enviando) return;
   if (Date.now() - ultimaAct < 60000) return;
   ultimaAct = Date.now();
@@ -401,20 +403,46 @@ document.addEventListener('touchstart', toqueDeUso, { passive: true });
 document.addEventListener('mousedown', toqueDeUso);
 document.addEventListener('focusin', toqueDeUso);
 
-/* sondeo periódico liviano: solo pregunta por el conteo de la contadora.
-   No abre la planilla en el servidor (ahorra cuota de Google). */
-setInterval(function () {
-  if (document.hidden || $('app').classList.contains('oculto') || estado.enviando) return;
+/* SONDEO DEL CONTEO DE LA CONTADORA.
+   OJO: antes esto era un setInterval fijo de 5s, que disparaba SIEMPRE aunque
+   la respuesta anterior no hubiera llegado. Cuando el servidor de Google se
+   ponía lento (o se sumaba un segundo usuario) los pedidos se apilaban unos
+   encima de otros: más pedidos -> más cola -> más lento -> más pedidos.
+   Se comía la cuota diaria y la app tiraba errores de servidor.
+   Ahora el próximo pedido se agenda RECIÉN cuando terminó el anterior, y si
+   falla se afloja el ritmo solo. NO volver a poner setInterval acá. */
+var pausaConteo = 5000;
+function ritmoConteo() {
+  // rápido solo si alguien tocó la app hace poco; si quedó abierta y quieta, tranquilo
+  return (Date.now() - ultimoToque < 180000) ? 5000 : 30000;
+}
+function cicloConteo() {
+  if (document.hidden || $('app').classList.contains('oculto') || estado.enviando) {
+    setTimeout(cicloConteo, pausaConteo);
+    return;
+  }
   api({ accion: 'conteoRapido' })
-    .then(function (d) { mostrarConteoGlory(d.conteo); })
-    .catch(function () { /* silencioso: si falla, lo reintenta en el próximo ciclo */ });
-}, 5000);
+    .then(function (d) { mostrarConteoGlory(d.conteo); pausaConteo = ritmoConteo(); })
+    .catch(function () { pausaConteo = Math.min(pausaConteo * 2, 60000); })
+    .then(function () { setTimeout(cicloConteo, pausaConteo); });
+}
+setTimeout(cicloConteo, 5000);
 
-/* refresco completo (saldo y movimientos) cada 3 minutos mientras se usa */
-setInterval(function () {
-  if (document.hidden || $('app').classList.contains('oculto') || estado.enviando) return;
-  refrescar();
-}, 180000);
+/* refresco completo (saldo y movimientos): mismo criterio, sin apilar.
+   Va por api() y no por refrescar() para no mostrar cartel de error en cada
+   refresco de fondo (el usuario no pidió nada, no tiene que ver un error). */
+var pausaRefresco = 180000;
+function cicloRefresco() {
+  if (document.hidden || $('app').classList.contains('oculto') || estado.enviando) {
+    setTimeout(cicloRefresco, pausaRefresco);
+    return;
+  }
+  api({ accion: 'estado' })
+    .then(function (d) { pintarEstado(d); pausaRefresco = 180000; })
+    .catch(function () { pausaRefresco = Math.min(pausaRefresco * 2, 900000); })
+    .then(function () { setTimeout(cicloRefresco, pausaRefresco); });
+}
+setTimeout(cicloRefresco, 180000);
 
 /* arranque */
 pintarTipo();
