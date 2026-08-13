@@ -140,7 +140,7 @@
     <!-- Sirve para saber de un vistazo si un celular quedó con una versión
          vieja: si dos aparatos muestran versiones distintas, uno no actualizó. -->
     <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">
-      versión 21 · <span id="medidor">último pedido: —</span>
+      versión 22 · <span id="medidor">último pedido: —</span>
     </div>
   </div>
 </div>
@@ -377,6 +377,20 @@ $('detalle').oninput = function () {
   });
   caja.classList.remove('oculto');
 };
+
+/* RED DE SEGURIDAD: si contaste ANTES de escribir el detalle, el sondeo no
+   estaba corriendo y la tarjetita no apareció. Al tocar el campo del monto
+   preguntamos una vez enseguida. El servidor guarda el último conteo 3
+   minutos, así que alcanza para recuperarlo. */
+var ultimaConsultaManual = 0;
+$('monto').addEventListener('focus', function () {
+  if (pausado || estado.enviando) return;
+  if (Date.now() - ultimaConsultaManual < 3000) return;   // sin ráfagas
+  ultimaConsultaManual = Date.now();
+  api({ accion: 'conteoRapido' })
+    .then(function (d) { mostrarConteoGlory(d.conteo); })
+    .catch(function () {});
+});
 document.addEventListener('click', function (ev) {
   if (ev.target.id !== 'detalle') $('sug').classList.add('oculto');
 });
@@ -519,14 +533,24 @@ document.addEventListener('focusin', toqueDeUso);
    Recién cuando alguien lo toca (que es cuando va a cargar un movimiento)
    empieza a preguntar, y deja de hacerlo al minuto de quedarse quieto. */
 var ACTIVO_MS = 60000;
-/* Cada cuánto se pregunta por el conteo de la contadora mientras la app está
-   a la vista. A 5 s eran ~12 pedidos por minuto por aparato; a 15 s son 4.
-   La tarjetita puede tardar hasta 15 s en aparecer en vez de 5, que en la
-   práctica no se nota porque entre que termina la contadora y agarrás el
-   celular ya pasaron varios segundos. Subir este número es la palanca para
-   aliviar el servidor sin perder ninguna función. */
-var RITMO_MS = 15000;
+/* SOLO SE PREGUNTA MIENTRAS HAY UN MOVIMIENTO EMPEZADO (idea de Lucas, 13/8).
+   La app pregunta por la contadora desde que se escribe el detalle hasta que
+   se confirma el movimiento. El orden de trabajo pasa a ser "escribo el nombre
+   del fletero y después cuento", y así el sondeo corre unos minutos por
+   movimiento en vez de todo el día.
+   Antes preguntaba siempre que la app estuviera a la vista: ~240 pedidos por
+   hora por aparato. Ahora son unos pocos por movimiento, y justamente por eso
+   se puede volver a 5 s (más rápido que los 15 s) gastando mucho menos.
+   OJO: NO usar "tocaron la pantalla" como señal (se probó en la v14 y falló):
+   se cuenta en la máquina SIN tocar el celular, así que la tarjetita no
+   aparecía nunca. */
+var RITMO_MS = 5000;
 var pausaConteo = RITMO_MS;
+
+function hayMovimientoEmpezado() {
+  var d = $('detalle');
+  return !!(d && d.value.trim());
+}
 
 function seEstaUsando() { return (Date.now() - ultimoToque) < ACTIVO_MS; }
 
@@ -550,7 +574,7 @@ function cicloConteo() {
   // la tarjetita no aparecería nunca (pasó el 12/8). Con la app a la vista
   // se pregunta siempre; pantalla apagada, segundo plano o pausa ya cortan.
   if (document.hidden || pausado || $('app').classList.contains('oculto') ||
-      estado.enviando || !debePreguntarPorElConteo()) {
+      estado.enviando || !hayMovimientoEmpezado() || !debePreguntarPorElConteo()) {
     setTimeout(cicloConteo, 5000);
     return;
   }
