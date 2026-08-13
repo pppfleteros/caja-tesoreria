@@ -140,7 +140,7 @@
     <!-- Sirve para saber de un vistazo si un celular quedó con una versión
          vieja: si dos aparatos muestran versiones distintas, uno no actualizó. -->
     <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">
-      versión 22 · <span id="medidor">último pedido: —</span>
+      versión 23 · <span id="medidor">último pedido: —</span>
     </div>
   </div>
 </div>
@@ -293,7 +293,16 @@ function mostrarConteoGlory(c) {
   var aviso = c.alerta
     ? '<br><small>⚠️ Hay billetes que no reconozco: VERIFICÁ el monto contra el ticket.</small>'
     : '';
-  caja.innerHTML = '<span>💵 La contadora contó<br><b>$ ' + fmt(c.valor) + '</b> <small>(' + c.billetes + ' billetes)</small>' + aviso + '</span>';
+  // De cuándo es el conteo. Lo calcula el servidor (el reloj del celular puede
+  // estar corrido). Sirve para no confundir un conteo viejo con el recién hecho.
+  var cuando = '';
+  if (typeof c.hace === 'number') {
+    cuando = c.hace < 60
+      ? ' · recién'
+      : ' · hace ' + Math.round(c.hace / 60) + ' min';
+  }
+  caja.innerHTML = '<span>💵 La contadora contó<br><b>$ ' + fmt(c.valor) + '</b> <small>(' +
+    c.billetes + ' billetes' + esc(cuando) + ')</small>' + aviso + '</span>';
   var b = document.createElement('button');
   b.textContent = 'Usar';
   b.onclick = function () {
