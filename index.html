@@ -139,7 +139,9 @@
     </div>
     <!-- Sirve para saber de un vistazo si un celular quedó con una versión
          vieja: si dos aparatos muestran versiones distintas, uno no actualizó. -->
-    <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">versión 18</div>
+    <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">
+      versión 19 · <span id="medidor">último pedido: —</span>
+    </div>
   </div>
 </div>
 
@@ -165,7 +167,19 @@ function mostrarError(msg) {
   setTimeout(function () { e.style.display = 'none'; }, 6000);
 }
 
+/* Cronómetro de cada pedido. Se muestra al pie de la app para poder saber
+   cuánto tarda EN EL CELULAR, que puede ser muy distinto de lo que tarda desde
+   una PC en la misma oficina. */
+function marcarTiempo(ms, fallo) {
+  var e = $('medidor');
+  if (!e) return;
+  e.textContent = fallo ? ('último pedido: falló a los ' + Math.round(ms / 1000) + ' s')
+                        : ('último pedido: ' + (ms / 1000).toFixed(1) + ' s');
+  e.style.color = (fallo || ms > 8000) ? 'var(--rojo)' : 'var(--gris)';
+}
+
 function api(cuerpo) {
+  var t0 = Date.now();
   cuerpo.clave = localStorage.getItem('clave') || $('clave').value.trim();
   // corte por tiempo: si el servidor no responde, no dejamos la app colgada
   var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
@@ -180,9 +194,14 @@ function api(cuerpo) {
         catch (e) { throw new Error('El servidor no respondió bien. Reintentá en un momento.'); }
       });
     })
-    .then(function (d) { if (d.error) throw new Error(d.error); return d; })
+    .then(function (d) {
+      if (d.error) throw new Error(d.error);
+      marcarTiempo(Date.now() - t0, false);
+      return d;
+    })
     .catch(function (e) {
       if (corte) clearTimeout(corte);
+      marcarTiempo(Date.now() - t0, true);
       if (e.name === 'AbortError') throw new Error('El servidor tardó demasiado. Verificá si el movimiento se guardó antes de reintentar.');
       throw e;
     });
@@ -387,10 +406,12 @@ $('confirmar').onclick = function () {
   // el mismo id en los reintentos evita que se cargue la plata dos veces
   if (!estado.idPendiente) estado.idPendiente = nuevoId();
   api({ accion: 'agregar', tipo: estado.tipo, moneda: estado.moneda, monto: monto, detalle: detalle, empresas: empresas, idCliente: estado.idPendiente })
-    .then(function () {
+    .then(function (d) {
       estado.idPendiente = null;
       $('detalle').value = ''; $('monto').value = '';
       estado.emp = []; pintarEmp();
+      // el servidor ya nos devuelve el estado nuevo: nos ahorramos un viaje
+      if (d && d.estado) { pintarEstado(d.estado); return; }
       return refrescar();
     })
     .catch(function (e) { mostrarError(e.message); })
