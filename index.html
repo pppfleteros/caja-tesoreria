@@ -140,7 +140,7 @@
     <!-- Sirve para saber de un vistazo si un celular quedó con una versión
          vieja: si dos aparatos muestran versiones distintas, uno no actualizó. -->
     <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">
-      versión 20 · <span id="medidor">último pedido: —</span>
+      versión 21 · <span id="medidor">último pedido: —</span>
     </div>
   </div>
 </div>
@@ -474,7 +474,7 @@ function despausar() {
   pausado = false;
   $('pausa').classList.add('oculto');
   $('app').classList.remove('oculto');
-  pausaConteo = 5000;
+  pausaConteo = RITMO_MS;
   pausaRefresco = 180000;
   refrescar();
 }
@@ -519,7 +519,14 @@ document.addEventListener('focusin', toqueDeUso);
    Recién cuando alguien lo toca (que es cuando va a cargar un movimiento)
    empieza a preguntar, y deja de hacerlo al minuto de quedarse quieto. */
 var ACTIVO_MS = 60000;
-var pausaConteo = 5000;
+/* Cada cuánto se pregunta por el conteo de la contadora mientras la app está
+   a la vista. A 5 s eran ~12 pedidos por minuto por aparato; a 15 s son 4.
+   La tarjetita puede tardar hasta 15 s en aparecer en vez de 5, que en la
+   práctica no se nota porque entre que termina la contadora y agarrás el
+   celular ya pasaron varios segundos. Subir este número es la palanca para
+   aliviar el servidor sin perder ninguna función. */
+var RITMO_MS = 15000;
+var pausaConteo = RITMO_MS;
 
 function seEstaUsando() { return (Date.now() - ultimoToque) < ACTIVO_MS; }
 
@@ -548,7 +555,7 @@ function cicloConteo() {
     return;
   }
   api({ accion: 'conteoRapido' })
-    .then(function (d) { mostrarConteoGlory(d.conteo); pausaConteo = 5000; })
+    .then(function (d) { mostrarConteoGlory(d.conteo); pausaConteo = RITMO_MS; })
     .catch(function () { pausaConteo = Math.min(pausaConteo * 2, 60000); })
     .then(function () { setTimeout(cicloConteo, pausaConteo); });
 }
