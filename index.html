@@ -140,7 +140,7 @@
     <!-- Sirve para saber de un vistazo si un celular quedó con una versión
          vieja: si dos aparatos muestran versiones distintas, uno no actualizó. -->
     <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">
-      versión 19 · <span id="medidor">último pedido: —</span>
+      versión 20 · <span id="medidor">último pedido: —</span>
     </div>
   </div>
 </div>
@@ -523,13 +523,27 @@ var pausaConteo = 5000;
 
 function seEstaUsando() { return (Date.now() - ultimoToque) < ACTIVO_MS; }
 
+/* CORTE NOCTURNO (pedido de Lucas, 13/8): la caja no se usa de 18 a 5.
+   En esa franja, un celular olvidado con la pantalla encendida no debe
+   preguntar nada. Pero si alguien SÍ la está usando a esa hora, tiene que
+   funcionar igual: por eso de noche se pregunta solo si tocaron la pantalla
+   hace poco. Con un celular olvidado nadie toca nada -> cero pedidos. */
+function esHorarioDeUso() {
+  var h = new Date().getHours();
+  return (h >= 5 && h < 18);
+}
+function debePreguntarPorElConteo() {
+  return esHorarioDeUso() || seEstaUsando();
+}
+
 function cicloConteo() {
   // OJO: acá NO va seEstaUsando(). En recepción primero se cuenta en la
   // contadora (sin tocar el celular) y recién después se mira el celular
   // esperando la tarjetita: si esta pregunta dependiera de tocar el celular,
   // la tarjetita no aparecería nunca (pasó el 12/8). Con la app a la vista
   // se pregunta siempre; pantalla apagada, segundo plano o pausa ya cortan.
-  if (document.hidden || pausado || $('app').classList.contains('oculto') || estado.enviando) {
+  if (document.hidden || pausado || $('app').classList.contains('oculto') ||
+      estado.enviando || !debePreguntarPorElConteo()) {
     setTimeout(cicloConteo, 5000);
     return;
   }
