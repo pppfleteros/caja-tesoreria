@@ -36,7 +36,15 @@
   #btnRefrescar { position: absolute; top: 8px; right: 8px; border: none; background: none; font-size: 24px; color: var(--gris); padding: 6px; }
   #btnRefrescar.girando { animation: g 1s linear infinite; }
   .saldo .fecha { font-size: 15px; color: var(--gris); }
-  .saldo .monto { font-size: 36px; font-weight: 700; margin: 2px 0; }
+  /* TAMAÑO DE LOS MONTOS (elegido por Lucas el 13/8 sobre bocetos medidos).
+     Solo se agrandaron los tres montos: el saldo, el que trae la contadora y
+     el que se escribe a mano. Todo el resto quedó como estaba.
+     Los valores están medidos contra el ancho real de cada recuadro en un
+     celular chico (360 px) usando $ 798.456.231 como peor caso. Margen que
+     queda: saldo 47 px, contadora 33 px, manual 46 px.
+     NO subirlos sin volver a medir: a 50 px el saldo queda con 8 px de aire y
+     a 32 px el monto de la contadora ya no entra y se parte en dos renglones. */
+  .saldo .monto { font-size: 44px; font-weight: 700; margin: 2px 0; }
   .saldo .usd { font-size: 16px; color: var(--gris); }
   label { display: block; font-size: 14px; color: var(--gris); margin: 12px 0 6px; }
   .fila { display: flex; gap: 8px; }
@@ -48,7 +56,7 @@
   .chip.on { background: var(--azul-bg); border-color: var(--azul); color: var(--azul-tx); font-weight: 600; }
   input[type=text], input[type=tel], input[type=password] { width: 100%; padding: 13px; font-size: 18px; border: 1.5px solid var(--borde); border-radius: 10px; background: var(--card); color: var(--texto); }
   input:focus { outline: none; border-color: var(--azul); }
-  #monto { font-size: 25px; font-weight: 600; }
+  #monto { font-size: 32px; font-weight: 600; }   /* monto escrito a mano */
   .sug { border: 1.5px solid var(--borde); border-radius: 10px; margin-top: 4px; overflow: hidden; background: var(--card); }
   .sug div { padding: 13px 14px; font-size: 17px; border-top: 1px solid var(--borde); display: flex; justify-content: space-between; }
   .sug div:first-child { border-top: none; }
@@ -67,7 +75,7 @@
   .aviso { text-align: center; font-size: 16px; color: var(--gris); padding: 8px 0; }
   .error { background: var(--rojo-bg); color: var(--rojo-tx); padding: 11px 14px; border-radius: 10px; font-size: 16px; margin-bottom: 10px; display: none; }
   .glory { background: var(--verde-bg); color: var(--verde-tx); border: 1.5px solid var(--verde); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; font-size: 17px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-  .glory b { font-size: 21px; }
+  .glory b { font-size: 26px; }   /* monto que trae la contadora */
   .glory button { border: none; background: var(--verde); color: #fff; font-size: 16px; font-weight: 600; padding: 10px 16px; border-radius: 8px; white-space: nowrap; }
   .glory.alerta { background: #fef3c7; color: #78350f; border-color: #f59e0b; }
   .glory.alerta button { background: #b45309; }
@@ -143,7 +151,7 @@
     <!-- Sirve para saber de un vistazo si un celular quedó con una versión
          vieja: si dos aparatos muestran versiones distintas, uno no actualizó. -->
     <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">
-      versión 24 · <span id="medidor">último pedido: —</span>
+      versión 25 · <span id="medidor">último pedido: —</span>
     </div>
   </div>
 </div>
@@ -296,7 +304,10 @@ function mostrarConteoGlory(c) {
   var aviso = c.alerta
     ? '<br><small>⚠️ Hay billetes que no reconozco: VERIFICÁ el monto contra el ticket.</small>'
     : '';
-  caja.innerHTML = '<span>💵 La contadora contó<br><b>$ ' + fmt(c.valor) + '</b> <small>(' + c.billetes + ' billetes)</small>' + aviso + '</span>';
+  // La cantidad de billetes se sacó a pedido de Lucas (13/8): no la usan.
+  // El puente la sigue mandando, así que si algún día hace falta, es volver a
+  // poner c.billetes acá.
+  caja.innerHTML = '<span>💵 La contadora contó<br><b>$ ' + fmt(c.valor) + '</b>' + aviso + '</span>';
   var b = document.createElement('button');
   b.textContent = 'Usar';
   b.onclick = function () {
