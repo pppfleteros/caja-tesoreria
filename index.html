@@ -3,17 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#14532d">
+<meta name="theme-color" content="#000000">
 <title>Caja Tesorería</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
+  /* PALETA OSCURA FIJA (elegida por Lucas el 13/8): fondo negro y TODO el texto
+     en blanco puro. Lo único con color son los montos de los movimientos, en
+     verde y rojo. Antes había una paleta clara acá y un bloque
+     @media (prefers-color-scheme: dark) que la cambiaba según el celular; ese
+     bloque se sacó porque ahora la app es oscura siempre.
+     --gris quedó en blanco a propósito: lo usan todas las etiquetas y los
+     datos secundarios, y Lucas los quiere igual de blancos que el resto. */
   :root {
-    --verde: #16a34a; --verde-bg: #dcfce7; --verde-tx: #14532d;
-    --rojo: #dc2626; --rojo-bg: #fee2e2; --rojo-tx: #7f1d1d;
-    --azul: #2563eb; --azul-bg: #dbeafe; --azul-tx: #1e3a8a;
-    --gris: #6b7280; --borde: #d1d5db; --fondo: #f3f4f6; --card: #ffffff; --texto: #111827;
+    --verde: #16a34a; --verde-bg: #06301a; --verde-tx: #ffffff;
+    --rojo: #dc2626; --rojo-bg: #3b0d0d; --rojo-tx: #ffffff;
+    --azul: #3b82f6; --azul-bg: #10275c; --azul-tx: #ffffff;
+    --gris: #ffffff; --borde: #2e2e2e; --fondo: #000000; --card: #141414; --texto: #ffffff;
+    /* verde y rojo más vivos, solo para los montos: sobre negro necesitan brillo */
+    --verde-monto: #22c55e; --rojo-monto: #ef4444;
   }
   * { box-sizing: border-box; margin: 0; -webkit-tap-highlight-color: transparent; }
   body { font-family: system-ui, -apple-system, sans-serif; background: var(--fondo); color: var(--texto); padding-bottom: 40px; }
@@ -41,19 +50,19 @@
   input:focus { outline: none; border-color: var(--azul); }
   #monto { font-size: 25px; font-weight: 600; }
   .sug { border: 1.5px solid var(--borde); border-radius: 10px; margin-top: 4px; overflow: hidden; background: var(--card); }
-  .sug div { padding: 13px 14px; font-size: 17px; border-top: 1px solid #eee; display: flex; justify-content: space-between; }
+  .sug div { padding: 13px 14px; font-size: 17px; border-top: 1px solid var(--borde); display: flex; justify-content: space-between; }
   .sug div:first-child { border-top: none; }
   .sug small { color: var(--gris); font-size: 15px; }
   .confirmar { width: 100%; margin-top: 16px; padding: 16px 0; font-size: 19px; font-weight: 700; color: #fff; border: none; border-radius: 12px; background: var(--verde); }
   .confirmar.salida { background: var(--rojo); }
   .confirmar:disabled { opacity: .5; }
-  .mov { display: flex; align-items: center; gap: 8px; padding: 11px 0; border-top: 1px solid #eee; font-size: 16px; }
+  .mov { display: flex; align-items: center; gap: 8px; padding: 11px 0; border-top: 1px solid var(--borde); font-size: 16px; }
   .mov:first-child { border-top: none; }
   .mov .que { flex: 1; }
   .mov .quien { font-size: 14px; color: var(--gris); }
   .mov .cuanto { font-weight: 600; white-space: nowrap; }
-  .mov .cuanto.e { color: var(--verde); }
-  .mov .cuanto.s { color: var(--rojo); }
+  .mov .cuanto.e { color: var(--verde-monto); }
+  .mov .cuanto.s { color: var(--rojo-monto); }
   .mov button { border: none; background: none; color: var(--gris); font-size: 20px; padding: 4px 6px; }
   .aviso { text-align: center; font-size: 16px; color: var(--gris); padding: 8px 0; }
   .error { background: var(--rojo-bg); color: var(--rojo-tx); padding: 11px 14px; border-radius: 10px; font-size: 16px; margin-bottom: 10px; display: none; }
@@ -65,12 +74,6 @@
   .oculto { display: none !important; }
   .spin { display: inline-block; width: 16px; height: 16px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: g .7s linear infinite; vertical-align: -3px; }
   @keyframes g { to { transform: rotate(360deg); } }
-  @media (prefers-color-scheme: dark) {
-    :root { --fondo: #111827; --card: #1f2937; --texto: #f9fafb; --borde: #374151; --gris: #9ca3af;
-      --verde-bg: #14532d; --verde-tx: #bbf7d0; --rojo-bg: #7f1d1d; --rojo-tx: #fecaca; --azul-bg: #1e3a8a; --azul-tx: #bfdbfe; }
-    .mov { border-top-color: #374151; }
-    .sug div { border-top-color: #374151; }
-  }
 </style>
 </head>
 <body>
@@ -140,7 +143,7 @@
     <!-- Sirve para saber de un vistazo si un celular quedó con una versión
          vieja: si dos aparatos muestran versiones distintas, uno no actualizó. -->
     <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">
-      versión 22 · <span id="medidor">último pedido: —</span>
+      versión 24 · <span id="medidor">último pedido: —</span>
     </div>
   </div>
 </div>
