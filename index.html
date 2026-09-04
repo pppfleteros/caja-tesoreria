@@ -151,7 +151,7 @@
     <!-- Sirve para saber de un vistazo si un celular quedó con una versión
          vieja: si dos aparatos muestran versiones distintas, uno no actualizó. -->
     <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">
-      versión 26 · <span id="medidor">último pedido: —</span>
+      versión 27 · <span id="medidor">último pedido: —</span>
     </div>
   </div>
 </div>
@@ -192,9 +192,17 @@ function marcarTiempo(ms, fallo) {
 function api(cuerpo) {
   var t0 = Date.now();
   cuerpo.clave = localStorage.getItem('clave') || $('clave').value.trim();
-  // corte por tiempo: si el servidor no responde, no dejamos la app colgada
+  // CORTE POR TIEMPO. Dos plazos distintos a propósito:
+  //  - Guardar plata (agregar / anular): 60 s. Es lo único que escribe, y ahí
+  //    lo que se quiere es que TERMINE aunque tarde. Cortar a los 25 s dejaba
+  //    al usuario sin saber si se había guardado, cuando casi siempre sí.
+  //    Reintentar es seguro: el idCliente evita que se cargue dos veces.
+  //  - Consultas (estado / conteoRapido): 25 s. Son las que se repiten solas,
+  //    así que tienen que fallar rápido para no apilarse cuando Google va mal.
+  var escribe = (cuerpo.accion === 'agregar' || cuerpo.accion === 'anular');
+  var plazo = escribe ? 60000 : 25000;
   var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-  var corte = ctrl ? setTimeout(function () { ctrl.abort(); }, 25000) : null;
+  var corte = ctrl ? setTimeout(function () { ctrl.abort(); }, plazo) : null;
   var opciones = { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(cuerpo) };
   if (ctrl) opciones.signal = ctrl.signal;
   return fetch(API_URL, opciones)
@@ -440,7 +448,12 @@ $('confirmar').onclick = function () {
 
   estado.enviando = true;
   var b = $('confirmar');
-  b.disabled = true; b.innerHTML = '<span class="spin"></span>';
+  b.disabled = true; b.innerHTML = '<span class="spin"></span> Guardando…';
+  // Si Google está lento, avisamos que sigue trabajando. Sin esto el botón se
+  // queda girando y da la sensación de colgado, y el usuario toca dos veces.
+  var avisoLento = setTimeout(function () {
+    b.innerHTML = '<span class="spin"></span> El servidor está lento, esperá…';
+  }, 6000);
   // el mismo id en los reintentos evita que se cargue la plata dos veces
   if (!estado.idPendiente) estado.idPendiente = nuevoId();
   api({ accion: 'agregar', tipo: estado.tipo, moneda: estado.moneda, monto: monto, detalle: detalle, empresas: empresas, idCliente: estado.idPendiente })
@@ -454,6 +467,7 @@ $('confirmar').onclick = function () {
     })
     .catch(function (e) { mostrarError(e.message); })
     .then(function () {
+      clearTimeout(avisoLento);   // pintarTipo() le devuelve el texto normal
       estado.enviando = false;
       b.disabled = false;
       pintarTipo();
