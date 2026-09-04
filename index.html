@@ -117,7 +117,7 @@
     </div>
     </div>
 
-    <div class="card">
+    <div class="card" id="formulario">
       <div class="fila">
         <button class="btn-tipo entrada" id="btnE">↓ Ingreso</button>
         <button class="btn-tipo salida" id="btnS">↑ Egreso</button>
@@ -151,7 +151,7 @@
     <!-- Sirve para saber de un vistazo si un celular quedó con una versión
          vieja: si dos aparatos muestran versiones distintas, uno no actualizó. -->
     <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">
-      versión 25 · <span id="medidor">último pedido: —</span>
+      versión 26 · <span id="medidor">último pedido: —</span>
     </div>
   </div>
 </div>
@@ -159,7 +159,7 @@
 <script>
 var API_URL = 'https://script.google.com/macros/s/AKfycbxL_UQ0p1e0QDZ1PGgz5G71aMgfl9iLcf32lR_KU7bzOvNh4KyLVGnDLF30HFzkr7j5wg/exec';
 var EMPRESAS = ['LP', 'PPP', 'ELEBES', 'EL CHIRLO', 'SIN'];
-var estado = { tipo: 'E', moneda: 'ARS', emp: [], atajos: [], enviando: false };
+var estado = { tipo: 'E', moneda: 'ARS', emp: [], atajos: [], enviando: false, soloLectura: false };
 
 function $(id) { return document.getElementById(id); }
 /* evita que un detalle con caracteres raros rompa (o altere) la pantalla */
@@ -246,6 +246,13 @@ function iniciar(d) {
 function pintarEstado(d, esCache) {
   ultimaAct = Date.now();
   estado.atajos = d.atajos || [];
+
+  /* SOLO LECTURA: quién puede cargar y quién solo mira lo decide el SERVIDOR
+     (viene en d.soloLectura). Acá únicamente se esconde lo que no sirve.
+     El freno de verdad está en el backend: aunque alguien mostrara los botones
+     a mano, el servidor rechaza cargar y anular igual. */
+  estado.soloLectura = !!d.soloLectura;
+  $('formulario').classList.toggle('oculto', estado.soloLectura);
   // guardamos lo pintado para poder mostrarlo AL INSTANTE la próxima vez que
   // se abra la app, mientras llega lo fresco del servidor
   if (!esCache) {
@@ -277,14 +284,17 @@ function pintarEstado(d, esCache) {
     div.innerHTML = '<div class="que">' + esc(mv.detalle) + (mv.empresas ? ' · ' + esc(mv.empresas) : '') +
       '<div class="quien">' + esc(mv.hora) + ' · ' + esc(mv.usuario) + '</div></div>' +
       '<div class="cuanto ' + (mv.tipo === 'E' ? 'e' : 's') + '">' + signo + ' ' + fmtMon(mv.monto, mv.moneda) + '</div>';
-    var b = document.createElement('button');
-    b.textContent = '✕';
-    b.title = 'Anular';
-    b.onclick = function () {
-      if (!confirm('¿Anular este movimiento?\n' + mv.detalle + ' ' + fmtMon(mv.monto, mv.moneda))) return;
-      api({ accion: 'anular', id: mv.id }).then(refrescar).catch(function (e) { mostrarError(e.message); });
-    };
-    div.appendChild(b);
+    // en solo lectura no va la cruz de anular
+    if (!estado.soloLectura) {
+      var b = document.createElement('button');
+      b.textContent = '✕';
+      b.title = 'Anular';
+      b.onclick = function () {
+        if (!confirm('¿Anular este movimiento?\n' + mv.detalle + ' ' + fmtMon(mv.monto, mv.moneda))) return;
+        api({ accion: 'anular', id: mv.id }).then(refrescar).catch(function (e) { mostrarError(e.message); });
+      };
+      div.appendChild(b);
+    }
     m.appendChild(div);
   });
 }
@@ -604,17 +614,21 @@ setTimeout(cicloConteo, 5000);
    refresco de fondo (el usuario no pidió nada, no tiene que ver un error). */
 var pausaRefresco = 180000;
 function cicloRefresco() {
+  // En SOLO LECTURA la app es un tablero para mirar el saldo en vivo, así que
+  // se refresca sola aunque nadie toque la pantalla. Para quien carga plata se
+  // mantiene el freno de siempre: solo si estuvo usando la app hace poco.
+  var miraNadaMas = estado.soloLectura;
   if (document.hidden || pausado || $('app').classList.contains('oculto') ||
-      estado.enviando || !seEstaUsando()) {
+      estado.enviando || (!miraNadaMas && !seEstaUsando())) {
     setTimeout(cicloRefresco, 60000);
     return;
   }
   api({ accion: 'estado' })
-    .then(function (d) { pintarEstado(d); pausaRefresco = 180000; })
+    .then(function (d) { pintarEstado(d); pausaRefresco = miraNadaMas ? 120000 : 180000; })
     .catch(function () { pausaRefresco = Math.min(pausaRefresco * 2, 900000); })
     .then(function () { setTimeout(cicloRefresco, pausaRefresco); });
 }
-setTimeout(cicloRefresco, 180000);
+setTimeout(cicloRefresco, 120000);
 
 /* arranque */
 pintarTipo();
