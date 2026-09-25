@@ -72,6 +72,16 @@
   .mov .cuanto.e { color: var(--verde-monto); }
   .mov .cuanto.s { color: var(--rojo-monto); }
   .mov button { border: none; background: none; color: var(--gris); font-size: 20px; padding: 4px 6px; }
+  /* movimientos que todavía están viajando al servidor */
+  .mov .luz { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }
+  .mov.pend .luz { background: #eab308; animation: lat 1s ease-in-out infinite; }
+  .mov.pend .quien { color: #eab308; }
+  .mov.ok .luz { background: var(--verde-monto); }
+  .mov.ok .quien { color: var(--verde-monto); }
+  .mov.falla .luz { background: var(--rojo-monto); }
+  .mov.falla .quien { color: var(--rojo-monto); }
+  .mov button.reintentar { border: 1px solid var(--rojo-monto); border-radius: 8px; color: var(--rojo-monto); font-size: 13px; font-weight: 600; padding: 6px 10px; }
+  @keyframes lat { 0%, 100% { opacity: 1 } 50% { opacity: .2 } }
   .aviso { text-align: center; font-size: 16px; color: var(--gris); padding: 8px 0; }
   .error { background: var(--rojo-bg); color: var(--rojo-tx); padding: 11px 14px; border-radius: 10px; font-size: 16px; margin-bottom: 10px; display: none; }
   .glory { background: var(--verde-bg); color: var(--verde-tx); border: 1.5px solid var(--verde); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; font-size: 17px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -151,7 +161,7 @@
     <!-- Sirve para saber de un vistazo si un celular quedó con una versión
          vieja: si dos aparatos muestran versiones distintas, uno no actualizó. -->
     <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">
-      versión 28 · <span id="medidor">último pedido: —</span>
+      versión 29 · <span id="medidor">último pedido: —</span>
     </div>
   </div>
 </div>
@@ -160,6 +170,16 @@
 var API_URL = 'https://script.google.com/macros/s/AKfycbxL_UQ0p1e0QDZ1PGgz5G71aMgfl9iLcf32lR_KU7bzOvNh4KyLVGnDLF30HFzkr7j5wg/exec';
 var EMPRESAS = ['LP', 'PPP', 'ELEBES', 'EL CHIRLO', 'SIN'];
 var estado = { tipo: 'E', moneda: 'ARS', emp: [], atajos: [], enviando: false, soloLectura: false };
+
+/* MOVIMIENTOS EN VUELO. La app ya no se queda esperando al servidor: el
+   movimiento aparece en la lista al instante con la luz amarilla y se sigue
+   guardando por detrás. Se pone verde (desaparece de acá y baja del servidor)
+   cuando Google confirma, o roja si falló.
+   Reintentar es SIEMPRE seguro: viaja con el mismo idCliente, así que si en
+   realidad ya se había guardado, el servidor no lo carga dos veces. */
+var pendientes = [];
+var ultimoD = null;      // lo último que mandó el servidor, para repintar sin pedirle nada
+var envioSeq = 0;        // para que una respuesta vieja no pise a una nueva
 
 function $(id) { return document.getElementById(id); }
 /* evita que un detalle con caracteres raros rompa (o altere) la pantalla */
@@ -258,7 +278,11 @@ function iniciar(d) {
 /* ---- UI principal ---- */
 function pintarEstado(d, esCache) {
   ultimaAct = Date.now();
+  ultimoD = d;
   estado.atajos = d.atajos || [];
+  // "enviando" ahora quiere decir: hay algo viajando al servidor. Lo usan los
+  // sondeos para no encimarse con la carga.
+  estado.enviando = pendientes.filter(function (p) { return !p.falla; }).length > 0;
 
   /* SOLO LECTURA: quién puede cargar y quién solo mira lo decide el SERVIDOR
      (viene en d.soloLectura). Acá únicamente se esconde lo que no sirve.
@@ -282,15 +306,25 @@ function pintarEstado(d, esCache) {
   var diaMostrar = d.dia || hoy.getDate();
   var aviso = (d.dia && d.dia !== hoy.getDate()) ? ' ⚠️' : '';
   $('fecha').textContent = dias[hoy.getDay()] + ' ' + diaMostrar + ' de ' + meses[hoy.getMonth()] + aviso + ' · ' + d.usuario;
-  $('saldo').textContent = '$ ' + fmt(d.saldo);
+  // Lo que todavía está viajando se suma ACÁ, en la pantalla, para que el
+  // saldo no quede viejo mientras Google lo guarda. Lo que falló no suma.
+  var pendArs = 0, pendUsd = 0;
+  pendientes.forEach(function (p) {
+    if (p.falla) return;
+    var v = (p.tipo === 'E' ? 1 : -1) * p.monto;
+    if (p.moneda === 'USD') pendUsd += v; else pendArs += v;
+  });
+  var usd = (d.saldoUsd || 0) + pendUsd;
+  $('saldo').textContent = '$ ' + fmt(d.saldo + pendArs);
   $('saldo').style.opacity = d.saldoDudoso ? '0.55' : '1';
   $('saldoUsd').textContent = d.saldoDudoso
     ? '⚠️ Revisá el saldo anterior en la planilla'
-    : (d.saldoUsd ? 'Dólares: US$ ' + fmt(d.saldoUsd) : '');
+    : (usd ? 'Dólares: US$ ' + fmt(usd) : '');
   var m = $('movs');
-  if (!d.movimientos || !d.movimientos.length) { m.className = 'aviso'; m.textContent = 'Todavía no hay movimientos hoy.'; return; }
+  var hayDelServidor = !!(d.movimientos && d.movimientos.length);
+  if (!hayDelServidor && !pendientes.length) { m.className = 'aviso'; m.textContent = 'Todavía no hay movimientos hoy.'; return; }
   m.className = ''; m.innerHTML = '';
-  d.movimientos.forEach(function (mv) {
+  (hayDelServidor ? d.movimientos : []).forEach(function (mv) {
     var div = document.createElement('div');
     div.className = 'mov';
     var signo = mv.tipo === 'E' ? '+' : '−';
@@ -310,6 +344,68 @@ function pintarEstado(d, esCache) {
     }
     m.appendChild(div);
   });
+  // y abajo de todo, los que todavía están viajando
+  pendientes.forEach(function (p) { m.appendChild(filaPendiente(p)); });
+}
+
+/* Una fila de las que todavía no confirmó el servidor. */
+function filaPendiente(p) {
+  var div = document.createElement('div');
+  div.className = 'mov ' + (p.falla ? 'falla' : (p.confirmado ? 'ok' : 'pend'));
+  var signo = p.tipo === 'E' ? '+' : '−';
+  var leyenda = p.falla ? 'NO se guardó — tocá Reintentar' : (p.confirmado ? 'guardado ✓' : 'guardando…');
+  div.innerHTML = '<div class="que"><span class="luz"></span>' + esc(p.detalle) +
+    (p.empresas ? ' · ' + esc(p.empresas) : '') +
+    '<div class="quien">' + leyenda + '</div></div>' +
+    '<div class="cuanto ' + (p.tipo === 'E' ? 'e' : 's') + '">' + signo + ' ' + fmtMon(p.monto, p.moneda) + '</div>';
+  if (p.falla) {
+    var b = document.createElement('button');
+    b.className = 'reintentar';
+    b.textContent = 'Reintentar';
+    b.onclick = function () { enviarPendiente(p); };
+    div.appendChild(b);
+  }
+  return div;
+}
+
+/* Vuelve a dibujar la pantalla con lo último que mandó el servidor, sin
+   pedirle nada. Se usa cada vez que cambia algo de los pendientes. */
+function repintar() { if (ultimoD) pintarEstado(ultimoD, true); }
+
+/* Manda (o remanda) un movimiento. El idCliente es el mismo siempre, así que
+   reintentar no puede duplicar la plata. */
+function enviarPendiente(p) {
+  p.falla = false; p.confirmado = false;
+  repintar();
+  var mio = ++envioSeq;
+  api({ accion: 'agregar', tipo: p.tipo, moneda: p.moneda, monto: p.monto,
+        detalle: p.detalle, empresas: p.empresas, idCliente: p.id })
+    .then(function (d) {
+      p.confirmado = true; p.seq = mio; p.estadoDelServidor = (d && d.estado) || null;
+      asentar();
+    })
+    .catch(function (e) {
+      p.falla = true;
+      mostrarError(e.message);
+      repintar();
+    });
+}
+
+/* Cuando ya no queda nada volando, recién ahí le hacemos caso al saldo que
+   mandó el servidor. Antes no: si cargaste dos seguidos, el que vuelve primero
+   trae una foto donde el otro ya figura, y sumarle además el pendiente contaba
+   la misma plata dos veces. */
+function asentar() {
+  var volando = pendientes.filter(function (p) { return !p.falla && !p.confirmado; });
+  if (volando.length) { repintar(); return; }
+  var listos = pendientes.filter(function (p) { return p.confirmado; });
+  if (!listos.length) { repintar(); return; }
+  // la foto más nueva es la del último que salió: ya tiene a todos los de antes
+  var mejor = listos[0];
+  listos.forEach(function (p) { if (p.seq > mejor.seq) mejor = p; });
+  pendientes = pendientes.filter(function (p) { return !p.confirmado; });
+  if (mejor.estadoDelServidor) pintarEstado(mejor.estadoDelServidor);
+  else refrescar();
 }
 
 function refrescar() {
@@ -441,42 +537,29 @@ function montoActual() { return Number($('monto').value.replace(/\D/g, '')); }
 
 /* confirmar */
 $('confirmar').onclick = function () {
-  if (estado.enviando) return;
   var detalle = $('detalle').value.trim();
   var monto = montoActual();
   if (!detalle) { mostrarError('Escribí el detalle del movimiento.'); return; }
   if (!monto) { mostrarError('Poné el monto.'); return; }
+  // Tope de seguridad: tres volando a la vez no es que cargues rápido, es que
+  // el servidor no está contestando. Mejor frenar que amontonar.
+  if (pendientes.filter(function (p) { return !p.falla; }).length >= 3) {
+    mostrarError('Esperá a que se guarden los anteriores.'); return;
+  }
   var empresas = estado.emp.filter(function (e) { return e !== 'SIN'; }).join(' ');
   var resumen = (estado.tipo === 'E' ? 'INGRESO' : 'EGRESO') + ' de ' + fmtMon(monto, estado.moneda) +
     '\n' + detalle + (empresas ? '\nEmpresa: ' + empresas : '\nSin empresa') + '\n\n¿Confirmás?';
   if (!confirm(resumen)) return;
 
-  estado.enviando = true;
-  var b = $('confirmar');
-  b.disabled = true; b.innerHTML = '<span class="spin"></span> Guardando…';
-  // Si Google está lento, avisamos que sigue trabajando. Sin esto el botón se
-  // queda girando y da la sensación de colgado, y el usuario toca dos veces.
-  var avisoLento = setTimeout(function () {
-    b.innerHTML = '<span class="spin"></span> El servidor está lento, esperá…';
-  }, 6000);
-  // el mismo id en los reintentos evita que se cargue la plata dos veces
-  if (!estado.idPendiente) estado.idPendiente = nuevoId();
-  api({ accion: 'agregar', tipo: estado.tipo, moneda: estado.moneda, monto: monto, detalle: detalle, empresas: empresas, idCliente: estado.idPendiente })
-    .then(function (d) {
-      estado.idPendiente = null;
-      $('detalle').value = ''; $('monto').value = '';
-      estado.emp = []; pintarEmp();
-      // el servidor ya nos devuelve el estado nuevo: nos ahorramos un viaje
-      if (d && d.estado) { pintarEstado(d.estado); return; }
-      return refrescar();
-    })
-    .catch(function (e) { mostrarError(e.message); })
-    .then(function () {
-      clearTimeout(avisoLento);   // pintarTipo() le devuelve el texto normal
-      estado.enviando = false;
-      b.disabled = false;
-      pintarTipo();
-    });
+  // El movimiento entra a la lista YA, con la luz amarilla, y viaja por
+  // detrás. No hay nada que esperar: se puede seguir con el fletero siguiente.
+  var p = { id: nuevoId(), tipo: estado.tipo, moneda: estado.moneda, monto: monto,
+            detalle: detalle, empresas: empresas, falla: false };
+  pendientes.push(p);
+  $('detalle').value = ''; $('monto').value = '';
+  estado.emp = []; pintarEmp(); pintarTipo();
+  repintar();
+  enviarPendiente(p);
 };
 
 /* actualizar */
