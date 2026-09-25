@@ -161,7 +161,7 @@
     <!-- Sirve para saber de un vistazo si un celular quedó con una versión
          vieja: si dos aparatos muestran versiones distintas, uno no actualizó. -->
     <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">
-      versión 30 · <span id="medidor">último pedido: —</span>
+      versión 31 · <span id="medidor">último pedido: —</span>
     </div>
   </div>
 </div>
@@ -683,7 +683,13 @@ var ACTIVO_MS = 60000;
    OJO: NO usar "tocaron la pantalla" como señal (se probó en la v14 y falló):
    se cuenta en la máquina SIN tocar el celular, así que la tarjetita no
    aparecía nunca. */
-var RITMO_MS = 5000;
+/* 1 SEGUNDO (25/9). Se pudo bajar de 5 a 1 porque la pregunta ya no va a
+   Google: la contesta el worker de Cloudflare con lo que le dejó el puente,
+   en unos 50 ms. Antes cada pregunta costaba entre 2 y 20 segundos de Apps
+   Script y preguntar cada segundo lo habría fundido.
+   Y sólo se pregunta mientras hay un movimiento empezado (unos minutos por
+   día en total), así que ni Cloudflare ni Google lo notan. */
+var RITMO_MS = 1000;
 var pausaConteo = RITMO_MS;
 
 function hayMovimientoEmpezado() {
@@ -714,7 +720,10 @@ function cicloConteo() {
   // se pregunta siempre; pantalla apagada, segundo plano o pausa ya cortan.
   if (document.hidden || pausado || $('app').classList.contains('oculto') ||
       estado.enviando || !hayMovimientoEmpezado() || !debePreguntarPorElConteo()) {
-    setTimeout(cicloConteo, 5000);
+    // El repaso de "¿ya hay un movimiento empezado?" también va cada segundo:
+    // si esperara 5 s, la primera pregunta tardaría hasta 5 s en salir y no
+    // se notaría el cambio. Es una revisada local, no sale a internet.
+    setTimeout(cicloConteo, RITMO_MS);
     return;
   }
   api({ accion: 'conteoRapido' })
@@ -722,7 +731,7 @@ function cicloConteo() {
     .catch(function () { pausaConteo = Math.min(pausaConteo * 2, 60000); })
     .then(function () { setTimeout(cicloConteo, pausaConteo); });
 }
-setTimeout(cicloConteo, 5000);
+setTimeout(cicloConteo, RITMO_MS);
 
 /* refresco completo (saldo y movimientos): mismo criterio, sin apilar.
    Va por api() y no por refrescar() para no mostrar cartel de error en cada
