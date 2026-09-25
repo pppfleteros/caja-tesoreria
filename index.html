@@ -161,13 +161,19 @@
     <!-- Sirve para saber de un vistazo si un celular quedó con una versión
          vieja: si dos aparatos muestran versiones distintas, uno no actualizó. -->
     <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">
-      versión 29 · <span id="medidor">último pedido: —</span>
+      versión 30 · <span id="medidor">último pedido: —</span>
     </div>
   </div>
 </div>
 
 <script>
-var API_URL = 'https://script.google.com/macros/s/AKfycbxL_UQ0p1e0QDZ1PGgz5G71aMgfl9iLcf32lR_KU7bzOvNh4KyLVGnDLF30HFzkr7j5wg/exec';
+/* La app le habla al worker de Cloudflare, no directo a Google. El worker
+   contesta al instante el saldo y la contadora (de su propia memoria) y le
+   pasa derecho a Apps Script todo lo que escribe plata. La planilla del Drive
+   sigue siendo la verdad y el backend de Apps Script no cambió.
+   Si el worker no contesta, la app se va sola a Google como antes. */
+var API_URL = 'https://caja-ppp.lucas-mendez.workers.dev';
+var API_RESPALDO = 'https://script.google.com/macros/s/AKfycbxL_UQ0p1e0QDZ1PGgz5G71aMgfl9iLcf32lR_KU7bzOvNh4KyLVGnDLF30HFzkr7j5wg/exec';
 var EMPRESAS = ['LP', 'PPP', 'ELEBES', 'EL CHIRLO', 'SIN'];
 var estado = { tipo: 'E', moneda: 'ARS', emp: [], atajos: [], enviando: false, soloLectura: false };
 
@@ -231,6 +237,13 @@ function api(cuerpo) {
   var opciones = { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(cuerpo) };
   if (ctrl) opciones.signal = ctrl.signal;
   return fetch(API_URL, opciones)
+    .catch(function (e) {
+      // RED DE SEGURIDAD: si al worker no se lo puede alcanzar (no es que el
+      // servidor haya dicho que no, es que no contesta), vamos derecho a
+      // Google como toda la vida. Reintentar es seguro por el idCliente.
+      if (e && e.name === 'AbortError') throw e;
+      return fetch(API_RESPALDO, opciones);
+    })
     .then(function (r) {
       if (corte) clearTimeout(corte);
       return r.text().then(function (txt) {
