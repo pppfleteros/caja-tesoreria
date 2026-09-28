@@ -161,7 +161,7 @@
     <!-- Sirve para saber de un vistazo si un celular quedó con una versión
          vieja: si dos aparatos muestran versiones distintas, uno no actualizó. -->
     <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">
-      versión 31 · <span id="medidor">último pedido: —</span>
+      versión 32 · <span id="medidor">último pedido: —</span>
     </div>
   </div>
 </div>
@@ -311,7 +311,12 @@ function pintarEstado(d, esCache) {
       localStorage.setItem('cacheEstado', JSON.stringify(copia));
     } catch (e) {}
   }
-  mostrarConteoGlory(d.conteo);
+  // La tarjetita SOLO se dibuja con una respuesta fresca del servidor. Cuando
+  // esto es un repintado de lo último que ya teníamos (esCache), el conteo que
+  // viene adentro puede ser de hace varios minutos: dibujarlo resucitaba la
+  // tarjetita de un fletero anterior. El repintado pasa cada vez que se
+  // confirma un movimiento, así que se veía seguido.
+  if (!esCache) mostrarConteoGlory(d.conteo);
   var hoy = new Date();
   var dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
   var meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
@@ -426,12 +431,31 @@ function refrescar() {
 }
 
 /* ---- conteo de la contadora Glory ---- */
-var conteoUsado = localStorage.getItem('conteoUsado') || '';
+/* CONTEOS YA USADOS. Se recuerdan los últimos VARIOS y no uno solo.
+   Guardando uno solo pasaba esto (lo vio Lucas el 28/9): usabas el conteo de
+   un fletero, después usabas el del siguiente, y con eso el primero dejaba de
+   estar marcado. Cualquier respuesta del servidor que todavía lo trajera —y lo
+   trae hasta 3 minutos— volvía a mostrar la tarjetita vieja del fletero
+   anterior. Con una lista, un conteo usado no vuelve nunca más. */
+var conteosUsados = [];
+try { conteosUsados = JSON.parse(localStorage.getItem('conteosUsados') || '[]'); } catch (e) { conteosUsados = []; }
+if (!conteosUsados.length) {
+  var usadoViejo = localStorage.getItem('conteoUsado');   // el de las versiones anteriores
+  if (usadoViejo) conteosUsados = [usadoViejo];
+}
+function yaSeUso(clave) { return conteosUsados.indexOf(clave) >= 0; }
+function marcarUsado(clave) {
+  if (yaSeUso(clave)) return;
+  conteosUsados.push(clave);
+  if (conteosUsados.length > 30) conteosUsados = conteosUsados.slice(-30);
+  try { localStorage.setItem('conteosUsados', JSON.stringify(conteosUsados)); } catch (e) {}
+}
+
 function mostrarConteoGlory(c) {
   var caja = $('glory');
   // clave por sesión + monto: si agregás un billete, el monto cambia y se vuelve a mostrar
   var clave = c ? (c.sesion + ':' + c.valor) : '';
-  if (!c || !c.valor || clave === conteoUsado) { caja.classList.add('oculto'); return; }
+  if (!c || !c.valor || yaSeUso(clave)) { caja.classList.add('oculto'); return; }
   caja.classList.toggle('alerta', !!c.alerta);
   var aviso = c.alerta
     ? '<br><small>⚠️ Hay billetes que no reconozco: VERIFICÁ el monto contra el ticket.</small>'
@@ -446,8 +470,7 @@ function mostrarConteoGlory(c) {
     estado.moneda = 'ARS';
     [].forEach.call($('monedas').children, function (x) { x.classList.toggle('on', x.dataset.m === 'ARS'); });
     $('monto').value = '$ ' + fmt(c.valor);
-    conteoUsado = clave;
-    try { localStorage.setItem('conteoUsado', clave); } catch (e) {}
+    marcarUsado(clave);
     caja.classList.add('oculto');
   };
   caja.appendChild(b);
