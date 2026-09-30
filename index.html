@@ -161,7 +161,7 @@
     <!-- Sirve para saber de un vistazo si un celular quedó con una versión
          vieja: si dos aparatos muestran versiones distintas, uno no actualizó. -->
     <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">
-      versión 32 · <span id="medidor">último pedido: —</span>
+      versión 33 · <span id="medidor">último pedido: —</span>
     </div>
   </div>
 </div>
@@ -342,6 +342,10 @@ function pintarEstado(d, esCache) {
   var hayDelServidor = !!(d.movimientos && d.movimientos.length);
   if (!hayDelServidor && !pendientes.length) { m.className = 'aviso'; m.textContent = 'Todavía no hay movimientos hoy.'; return; }
   m.className = ''; m.innerHTML = '';
+  // ARRIBA DE TODO los que todavía están viajando (pedido de Lucas, 30/9).
+  // Abajo del todo no se veían: la lista crece durante el día y hay que
+  // bajar hasta el final justo para ver lo único que necesita atención.
+  pendientes.forEach(function (p) { m.appendChild(filaPendiente(p)); });
   (hayDelServidor ? d.movimientos : []).forEach(function (mv) {
     var div = document.createElement('div');
     div.className = 'mov';
@@ -362,8 +366,6 @@ function pintarEstado(d, esCache) {
     }
     m.appendChild(div);
   });
-  // y abajo de todo, los que todavía están viajando
-  pendientes.forEach(function (p) { m.appendChild(filaPendiente(p)); });
 }
 
 /* Una fila de las que todavía no confirmó el servidor. */
