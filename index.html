@@ -161,7 +161,7 @@
     <!-- Sirve para saber de un vistazo si un celular quedó con una versión
          vieja: si dos aparatos muestran versiones distintas, uno no actualizó. -->
     <div style="text-align:center;color:var(--gris);font-size:12px;margin-top:14px">
-      versión 33 · <span id="medidor">último pedido: —</span>
+      versión 34 · <span id="medidor">último pedido: —</span>
     </div>
   </div>
 </div>
@@ -194,7 +194,26 @@ function esc(t) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
-function fmt(n) { return new Intl.NumberFormat('es-AR').format(Math.round(n)); }
+/* NUNCA mostrar "NaN". Si alguna vez llega algo que no es un número, se
+   muestra un guion —que al menos no confunde— y se le avisa al servidor con
+   el renglón exacto donde pasó, para poder arreglar la causa. Un aviso por
+   tipo y por sesión: no queremos llenar de pedidos. */
+var yaAvise = {};
+function avisarRaro(que, dato) {
+  if (yaAvise[que]) return;
+  yaAvise[que] = true;
+  try {
+    var donde = '';
+    try { donde = String(new Error().stack || '').split('\n').slice(1, 5).join(' | '); } catch (e) {}
+    api({ accion: 'aviso', que: que, dato: { crudo: String(dato), tipo: typeof dato, donde: donde } })
+      .catch(function () {});
+  } catch (e) {}
+}
+function fmt(n) {
+  var x = Number(n);
+  if (!isFinite(x)) { avisarRaro('monto-no-numerico', n); return '—'; }
+  return new Intl.NumberFormat('es-AR').format(Math.round(x));
+}
 function fmtMon(n, m) { return (m === 'USD' ? 'US$ ' : '$ ') + fmt(n); }
 
 function mostrarError(msg) {
@@ -323,7 +342,12 @@ function pintarEstado(d, esCache) {
   // el día lo manda el servidor (la planilla), no el reloj del celular
   var diaMostrar = d.dia || hoy.getDate();
   var aviso = (d.dia && d.dia !== hoy.getDate()) ? ' ⚠️' : '';
-  $('fecha').textContent = dias[hoy.getDay()] + ' ' + diaMostrar + ' de ' + meses[hoy.getMonth()] + aviso + ' · ' + d.usuario;
+  // Si el servidor tuvo que darnos una foto vieja del saldo, se dice. Es
+  // plata: mejor saber que el número es de hace un rato, a creer que es de
+  // ahora. Abajo de los 2 minutos no se muestra nada (es lo normal).
+  var viejo = (typeof d.deHaceSeg === 'number' && d.deHaceSeg > 120)
+    ? ' · saldo de hace ' + Math.round(d.deHaceSeg / 60) + ' min' : '';
+  $('fecha').textContent = dias[hoy.getDay()] + ' ' + diaMostrar + ' de ' + meses[hoy.getMonth()] + aviso + ' · ' + d.usuario + viejo;
   // Lo que todavía está viajando se suma ACÁ, en la pantalla, para que el
   // saldo no quede viejo mientras Google lo guarda. Lo que falló no suma.
   var pendArs = 0, pendUsd = 0;
